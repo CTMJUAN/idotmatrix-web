@@ -83,6 +83,7 @@ label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:6px;c
     <option value="64x16">64×16</option><option value="48x24">48×24</option>
   </select></label>
   <button id="connect" class="primary">Connect</button>
+  <button id="connectAll" title="List every nearby Bluetooth device">Show all devices</button>
 </header>
 
 <main>
@@ -191,18 +192,23 @@ try { const s = localStorage.getItem("idm-size"); if (s) $("#size").value = s; }
 $("#size").onchange = () => { try { localStorage.setItem("idm-size", $("#size").value); } catch {} resizePad(); renderImg(); };
 
 /* ---------- connection ---------- */
-async function connect() {
+async function connect(showAll = false) {
   if (dev?.gatt.connected) { dev.gatt.disconnect(); return; }
-  try {
-    dev = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "IDM" }, { services: [SERVICE] }],
-      optionalServices: [SERVICE]
-    });
-  } catch (e) {
-    if (e.name === "NotFoundError") return;
-    try { dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE] }); }
-    catch { return; }
+  const opts = showAll ? { acceptAllDevices: true, optionalServices: [SERVICE] } : {
+    filters: [
+      { namePrefix: "IDM" }, { namePrefix: "iDM" }, { namePrefix: "idm" },
+      { services: [SERVICE] },
+      { manufacturerData: [{ companyIdentifier: 0x5254 }] }   // advert bytes 54 52 00 70 ("TR\0p")
+    ],
+    optionalServices: [SERVICE]
+  };
+  log(showAll ? "scanning for ALL nearby Bluetooth devices…" : "scanning for iDotMatrix displays…");
+  try { dev = await navigator.bluetooth.requestDevice(opts); }
+  catch (e) {
+    log(e.name === "NotFoundError" ? "no device chosen. If your display wasn't listed, try \"Show all devices\"" : e.name + ": " + e.message, "err");
+    return;
   }
+  log("selected: " + (dev.name || "(no name)") + "  id " + dev.id);
   dev.addEventListener("gattserverdisconnected", () => setConnected(false));
   setStatus("Connecting…");
   const server = await dev.gatt.connect();
@@ -223,6 +229,7 @@ function setConnected(on) {
   setStatus(on ? `Connected · ${dev?.name || "display"}` : "Not connected", on);
   $("#connect").textContent = on ? "Disconnect" : "Connect";
   $("#connect").classList.toggle("primary", !on);
+  $("#connectAll").hidden = on;
   log(on ? "connected to " + (dev?.name || "?") : "disconnected", on ? "rx" : "err");
 }
 function onNotify(b) {
@@ -317,7 +324,14 @@ async function upload(kind, data, bar) {
 const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
 /* ---------- controls ---------- */
-$("#connect").onclick = () => connect().catch(e => { log(e.message, "err"); setStatus("Not connected"); });
+function connErr(e) {
+  const m = /service/i.test(e.message) || e.name === "NotFoundError"
+    ? "that device doesn't have the iDotMatrix service (0x00fa). Pick a different one."
+    : e.name + ": " + e.message;
+  log(m, "err"); setStatus("Not connected"); try { dev?.gatt.disconnect(); } catch {}
+}
+$("#connect").onclick = () => connect().catch(connErr);
+$("#connectAll").onclick = () => connect(true).catch(connErr);
 let brightT;
 $("#bright").oninput = e => {
   $("#brightV").textContent = e.target.value;
