@@ -381,13 +381,17 @@ function setConnected(on) {
 let quietRx = false;
 function onNotify(b) {
   if (!quietRx) log("← " + hex(b), "rx");
-  const w = ackWaiters.shift(); if (w) w(b);
+  /* hand the reply only to a waiter that expects this kind of reply */
+  const i = ackWaiters.findIndex(w => w.match(b));
+  if (i >= 0) ackWaiters.splice(i, 1)[0].done(b);
 }
-function waitAck(ms = 5000) {
+/* upload acks look like 05 00 <kind> 00 <status> (ImageAgreement/GifAgreement/TextAgreement.parseData*) */
+const uploadAck = kind => b => b.length >= 5 && b[1] === 0 && b[2] === kind && b[3] === 0;
+function waitAck(match = () => true, ms = 5000) {
   return new Promise(res => {
-    const t = setTimeout(() => { const i = ackWaiters.indexOf(f); if (i >= 0) ackWaiters.splice(i, 1); res(null); }, ms);
-    const f = b => { clearTimeout(t); res(b); };
-    ackWaiters.push(f);
+    const w = { match, done: b => { clearTimeout(t); res(b); } };
+    const t = setTimeout(() => { const i = ackWaiters.indexOf(w); if (i >= 0) ackWaiters.splice(i, 1); res(null); }, ms);
+    ackWaiters.push(w);
   });
 }
 
@@ -461,11 +465,11 @@ async function upload(kind, data, bar, quiet = false, slot = 13, hold = 0) {
   bar = bar || { style: {} };
   bar.style.width = "0";
   for (let i = 0; i < frames.length; i++) {
-    const ackP = waitAck();
+    const ackP = waitAck(uploadAck(kind));
     await send(frames[i], quiet || i > 0);
     const ack = await ackP;
     bar.style.width = ((i + 1) / frames.length * 100) + "%";
-    if (!ack) { log(`no ack for block ${i + 1}/${frames.length}`, "err"); continue; }
+    if (!ack) { log(`display didn't answer block ${i + 1}/${frames.length}; stopped`, "err"); return "noack"; }
     const st = ack[4];
     if (st === 3) { if (!quiet) log("upload complete", "rx"); bar.style.width = "100%"; return "done"; }
     if (st === 2) { log("device: not enough space", "err"); return "nospace"; }
@@ -1090,7 +1094,7 @@ $("#txWrite").onclick = async () => {
   clearTimeout(txArm); txArm = null; btn.textContent = "Writing…"; btn.disabled = true;
   try {
     const hold = +$("#txHold").value, prof = textProfile();
-    const ackP = waitAck(3000);
+    const ackP = waitAck(b => b.length >= 5 && b[2] === 2 && b[3] === 1, 3000);   /* 05 00 02 01 01 */
     await send(new Uint8Array([17, 0, 2, 1, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]));   /* clear saved items */
     await ackP;
     for (let i = 0; i < list.length; i++) {
