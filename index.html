@@ -71,11 +71,22 @@ label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:6px;c
 .cc-prev{display:flex;flex-direction:column;align-items:center;gap:4px}
 #ccLed{width:100%;max-width:320px;height:auto;border-radius:10px;background:#050505;border:1px solid var(--line)}
 .cc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 14px}
-.cc-grid>label{display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:0;color:var(--muted)}
+.cc-grid>label,.cc-grid>label:has(input[type=checkbox]){display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:0;color:var(--muted)}
 .cc-grid select,.cc-grid input[type=file]{width:100%;min-width:0}
 .cc-grid input[type=range]{min-width:0;width:100%}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
 details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
+.standalone{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-top:12px}
+.standalone h3,#textSec h3{font-size:14px;margin:0 0 4px}
+.tag{font-size:11px;font-weight:600;color:var(--warn);border:1px solid var(--warn);border-radius:20px;padding:1px 7px;margin-left:4px;vertical-align:middle}
+#txPrev{display:block;max-width:100%;height:auto;image-rendering:pixelated;border-radius:8px;border:1px solid var(--line);margin-top:10px;background:#050505}
+.txlist{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:6px}
+.txlist li{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:4px 6px 4px 10px;min-width:0}
+.txlist li.empty{color:var(--muted);font-size:13px;border-style:dashed;padding:10px}
+.txlist .dot{width:12px;height:12px;border-radius:50%;flex:none}
+.txlist .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.txlist .m{font-size:12px;color:var(--muted);white-space:nowrap}
+.txlist button{min-height:32px;padding:4px 10px}
 .big{font-family:var(--mono);font-size:28px;width:90px;text-align:center}
 @media (max-width:420px){main{padding:12px 16px}section{padding:14px}}
 </style>
@@ -178,6 +189,16 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
           </select></div>
           <p class="note">Try "Full image" if the display doesn't update properly.</p>
         </details>
+        <div class="standalone">
+          <h3>Run without the phone <span class="tag">experimental</span></h3>
+          <p class="note" style="margin:0 0 6px">Draws every minute in advance into an animated GIF timed to the clock, so the display keeps time on its own after you disconnect.</p>
+          <div class="row">
+            <select id="ccSpan"><option value="60">1-hour loop (test)</option><option value="720">12-hour loop</option><option value="1440" selected>24-hour loop</option></select>
+            <select id="ccGifMode"><option value="diff">Small file</option><option value="full">Full frames (try if Small looks wrong)</option></select>
+          </div>
+          <div class="row"><button class="primary" id="ccGif">Send to display</button><div class="bar"><i id="ccGifBar"></i></div></div>
+          <p class="note" id="ccGifInfo"></p>
+        </div>
         <div class="row" style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px">
           <input id="ccName" placeholder="Name this face" style="flex:1;min-width:120px">
           <button id="ccSave">Save face</button>
@@ -188,7 +209,51 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
         </div>
       </div>
     </div>
-    <p class="note">The page draws each frame and sends it to the display, so keep this page open and the phone connected while the custom clock runs. The screen stays on automatically while it's running.</p>
+    <p class="note">"Start on display" runs the clock live from this page, so keep the page open and the phone connected (the screen stays on automatically). To have it keep running after you disconnect, use "Run without the phone".</p>
+  </section>
+
+  <section class="wide" id="textSec">
+    <h2>Text</h2>
+    <div class="row"><input id="txMsg" style="flex:1;min-width:0;font-size:16px" maxlength="200" placeholder="Type a message" value="HELLO WORLD"></div>
+    <canvas id="txPrev"></canvas>
+    <div class="cc-grid" style="margin-top:10px">
+      <label>Effect<select id="txMode">
+        <option value="0">Pin (still)</option><option value="1" selected>Scroll left</option><option value="2">Scroll right</option>
+        <option value="3">Scroll up</option><option value="4">Scroll down</option><option value="5">Flashing</option>
+        <option value="6">Breathing</option><option value="7">Snowflakes</option><option value="8">Laser</option>
+      </select></label>
+      <label>Speed<input type="range" id="txSpeed" min="0" max="100" value="85"></label>
+      <label>Text size<select id="txSize"></select></label>
+      <label>Font<span class="row" style="margin:0"><select id="txFont" style="flex:1;min-width:0">
+        <option value="sans-serif">Sans</option><option value="serif">Serif</option><option value="monospace">Mono</option>
+        <option value="'Arial Black', Impact, sans-serif">Heavy</option><option value="cursive">Script</option>
+      </select><span class="chk"><input type="checkbox" id="txBold" checked> Bold</span></span></label>
+      <label>Text colour<span class="row" style="margin:0"><select id="txColMode" style="flex:1;min-width:0">
+        <option value="1">Solid</option><option value="2">Rainbow 1</option><option value="3">Rainbow 2</option>
+        <option value="4">Rainbow 3</option><option value="5">Rainbow 4</option>
+      </select><input type="color" id="txColor" value="#ffd400"></span></label>
+      <label>Background<span class="row" style="margin:0"><select id="txBgMode" style="flex:1;min-width:0">
+        <option value="0">None</option><option value="1">Colour</option>
+      </select><input type="color" id="txBg" value="#200040"></span></label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="txShow">Show on display</button>
+      <button id="txAdd">Add to saved list</button>
+      <div class="bar"><i id="txBar"></i></div>
+    </div>
+    <p class="note">"Show on display" keeps the text running after your phone disconnects. To keep messages through a power-off as well, add them to the saved list and write it to the display's memory.</p>
+
+    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+      <h2 style="margin-bottom:8px">Saved on display</h2>
+      <ol id="txList" class="txlist"></ol>
+      <div class="row">
+        <label>Show each for</label>
+        <select id="txHold"><option value="5">5 s</option><option value="10" selected>10 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="300">5 min</option></select>
+        <button class="primary" id="txWrite">Write list to display</button>
+        <div class="bar"><i id="txWBar"></i></div>
+      </div>
+      <p class="note">Writing replaces whatever is currently saved in the display's memory, including items saved from the official app. The display then rotates through the list by itself, even after a power cut.</p>
+    </div>
   </section>
 
   <section>
@@ -377,19 +442,22 @@ function crc32(buf) {
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
-function uploadFrames(kind, data, slot = 13) {
+/* 16-byte header per 4 KB block, all multi-byte fields little-endian (matches the app's short2Bytes[1],[0] order):
+   [len16][kind][0][0 first|2 more][total32][crc32][hold16 seconds][slot]  slot 12/13 = show now */
+function uploadFrames(kind, data, slot = 13, hold = 0) {
   const crc = crc32(data), out = [];
   for (let i = 0; i < data.length; i += 4096) {
     const part = data.subarray(i, i + 4096), n = part.length + 16, h = new Uint8Array(n);
     const dv = new DataView(h.buffer);
-    dv.setUint16(0, n, false); h[2] = kind; h[3] = 0; h[4] = i ? 2 : 0;
+    dv.setUint16(0, n, true); h[2] = kind; h[3] = 0; h[4] = i ? 2 : 0;
     dv.setUint32(5, data.length, true); dv.setUint32(9, crc, true);
-    dv.setUint16(13, 0, false); h[15] = slot; h.set(part, 16); out.push(h);
+    dv.setUint16(13, slot >= 12 ? 0 : hold, true); h[15] = slot; h.set(part, 16); out.push(h);
   }
   return out;
 }
-async function upload(kind, data, bar, quiet = false) {
-  const frames = uploadFrames(kind, data);
+/* resolves "done" | "nospace" | "invalid" | "noack" */
+async function upload(kind, data, bar, quiet = false, slot = 13, hold = 0) {
+  const frames = uploadFrames(kind, data, slot, hold);
   bar = bar || { style: {} };
   bar.style.width = "0";
   for (let i = 0; i < frames.length; i++) {
@@ -399,10 +467,11 @@ async function upload(kind, data, bar, quiet = false) {
     bar.style.width = ((i + 1) / frames.length * 100) + "%";
     if (!ack) { log(`no ack for block ${i + 1}/${frames.length}`, "err"); continue; }
     const st = ack[4];
-    if (st === 3) { if (!quiet) log("upload complete", "rx"); bar.style.width = "100%"; return; }
-    if (st === 2) { log("device: not enough space", "err"); return; }
-    if (st === 0) { log("device: invalid transfer", "err"); return; }
+    if (st === 3) { if (!quiet) log("upload complete", "rx"); bar.style.width = "100%"; return "done"; }
+    if (st === 2) { log("device: not enough space", "err"); return "nospace"; }
+    if (st === 0) { log("device: invalid transfer", "err"); return "invalid"; }
   }
+  return "noack";
 }
 const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
@@ -673,10 +742,11 @@ function dateStr(d, c) {
 }
 
 /* ---- render one frame ---- */
-function renderClock(d = new Date()) {
+function renderClock(d = new Date(), minuteOnly = false) {
   const { w, h } = panel(); CC.W = w; CC.H = h;
   CC.buf = new Uint8Array(w * h * 3);
   const c = ccCfg();
+  if (minuteOnly) c.every = 60;
   drawBackground(c);
   const col = c.rainbow ? (x, y) => hsv((x / w) * 300 + d.getMinutes() * 6 + y * 4) : hexRGB(c.color);
   const acc = hexRGB(c.accent);
@@ -882,6 +952,280 @@ try { const cur = JSON.parse(localStorage.getItem("idm-cc-current") || "null"); 
 refreshSaved(); ccBgVis();
 drawPreview(renderClock());
 setInterval(() => { if (!CC.running) drawPreview(renderClock()); else if (CC.buf) drawPreview(CC.buf); }, 1000);
+
+/* ================= text (stored on the display) ================= */
+/* Per-panel text format, from TextAgreement.sendTextTo{832,1616,1664,3232,6464} */
+function textProfile() {
+  const { w, h } = panel();
+  if (h <= 8) return { id: "832", hdr: 0, sizes: [12], modes: [1, 2] };
+  if (h <= 16) return { id: w === 16 ? "1616" : "1664", hdr: w === 16 ? 1 : 0, sizes: [16] };
+  if (h < 64) return { id: "3232", hdr: 1, sizes: h >= 32 ? [16, 32] : [16] };
+  return { id: "6464", hdr: 1, sizes: [16, 32, 64] };
+}
+const GLYPH_TYPE = { 16: [2, 3], 32: [5, 6], 64: [7, 8] };          /* [half-width, full-width] */
+const isWide = ch => /[぀-ヿ㐀-鿿가-힯豈-﫿＀-￯]/.test(ch);
+const glyphCanvas = document.createElement("canvas");
+
+function txCfg() {
+  return {
+    text: $("#txMsg").value, mode: +$("#txMode").value, speed: +$("#txSpeed").value, size: +$("#txSize").value || 16,
+    font: $("#txFont").value, bold: $("#txBold").checked, colMode: +$("#txColMode").value, color: $("#txColor").value,
+    bgMode: +$("#txBgMode").value, bg: $("#txBg").value
+  };
+}
+function txApply(c) {
+  $("#txMsg").value = c.text; $("#txMode").value = c.mode; $("#txSpeed").value = c.speed; $("#txFont").value = c.font;
+  $("#txBold").checked = c.bold; $("#txColMode").value = c.colMode; $("#txColor").value = c.color;
+  $("#txBgMode").value = c.bgMode; $("#txBg").value = c.bg;
+  txPanel(); if ([...$("#txSize").options].some(o => +o.value === c.size)) $("#txSize").value = c.size;
+  txRender();
+}
+
+/* rasterise one character to a 1-bit cell, like Text1664.getCharBitmap + getTextData */
+function rasterGlyph(ch, cfg, prof) {
+  const narrow = prof.id === "832";
+  const H = narrow ? 12 : cfg.size, cw = narrow ? 12 : (isWide(ch) ? H : H / 2), bitsW = narrow ? 16 : cw;
+  glyphCanvas.width = cw; glyphCanvas.height = H;
+  const ctx = glyphCanvas.getContext("2d", { willReadFrequently: true });
+  ctx.clearRect(0, 0, cw, H);
+  ctx.font = `${cfg.bold ? "bold " : ""}${H}px ${cfg.font}`;
+  ctx.fillStyle = "#fff"; ctx.textBaseline = "alphabetic";
+  const m = ctx.measureText(ch), asc = m.fontBoundingBoxAscent ?? H * 0.8, desc = m.fontBoundingBoxDescent ?? H * 0.2;
+  const y = H / 2 + (asc - desc) / 2;
+  if (narrow) { ctx.textAlign = "left"; ctx.fillText(ch, 0, y); }
+  else { ctx.textAlign = "center"; ctx.fillText(ch, cw / 2, y); }
+  const a = ctx.getImageData(0, 0, cw, H).data;
+  const bits = new Uint8Array(bitsW * H / 8), pixels = [];
+  for (let yy = 0; yy < H; yy++) for (let x = 0; x < cw; x++) {
+    if (a[(yy * cw + x) * 4 + 3] > 110) {
+      const idx = yy * bitsW + x; bits[idx >> 3] |= 1 << (idx & 7); pixels.push([x, yy]);
+    }
+  }
+  const type = narrow ? 1 : GLYPH_TYPE[H][isWide(ch) ? 1 : 0];
+  return { type, bits, w: cw, h: H, pixels, fill: narrow ? 0 : 0xff };
+}
+function textPayload(cfg, prof = textProfile()) {
+  const chars = [...cfg.text], glyphs = chars.map(ch => rasterGlyph(ch, cfg, prof));
+  const [r, g, b] = rgbOf(cfg.color), [br, bg, bb] = rgbOf(cfg.bg);
+  const out = [chars.length & 255, chars.length >> 8, prof.hdr, 1, cfg.mode, cfg.speed, cfg.colMode,
+    r, g, (r === 0 && g === 0 && b === 0) ? 1 : b, cfg.bgMode, br, bg, bb];
+  for (const gl of glyphs) out.push(gl.type, gl.fill, gl.fill, gl.fill, ...gl.bits);
+  return { bytes: new Uint8Array(out), glyphs };
+}
+
+/* preview: the glyph strip exactly as it is sent */
+function txRender() {
+  const cfg = txCfg(), prof = textProfile(), { glyphs } = textPayload(cfg, prof);
+  const cv = $("#txPrev"), H = glyphs[0]?.h || cfg.size, totalW = Math.max(1, glyphs.reduce((a, gl) => a + gl.w, 0));
+  const p = Math.max(2, Math.min(8, Math.floor(96 / H)));
+  cv.width = totalW * p; cv.height = H * p;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = cfg.bgMode ? cfg.bg : "#050505"; ctx.fillRect(0, 0, cv.width, cv.height);
+  let x0 = 0;
+  for (const gl of glyphs) {
+    for (const [x, y] of gl.pixels) {
+      const X = x0 + x;
+      ctx.fillStyle = cfg.colMode === 1 ? cfg.color : `hsl(${(X / totalW) * 360 + cfg.colMode * 60},100%,55%)`;
+      ctx.fillRect(X * p, y * p, p - (p > 3 ? 1 : 0), p - (p > 3 ? 1 : 0));
+    }
+    x0 += gl.w;
+  }
+}
+function txPanel() {
+  const prof = textProfile(), sel = $("#txSize"), cur = +sel.value;
+  sel.innerHTML = prof.sizes.map(s => `<option value="${s}">${s} px${prof.id === "832" ? " (fixed)" : ""}</option>`).join("");
+  sel.value = prof.sizes.includes(cur) ? cur : prof.sizes[prof.sizes.length > 1 ? 1 : 0];
+  [...$("#txMode").options].forEach(o => o.disabled = !!prof.modes && !prof.modes.includes(+o.value));
+  if ($("#txMode").selectedOptions[0]?.disabled) $("#txMode").value = 1;
+}
+$$("#textSec input, #textSec select").forEach(el => el.addEventListener("input", () => {
+  txRender(); try { localStorage.setItem("idm-tx-current", JSON.stringify(txCfg())); } catch {}
+}));
+$("#size").addEventListener("change", () => { txPanel(); txRender(); });
+
+$("#txShow").onclick = async () => {
+  const cfg = txCfg(); if (!cfg.text.trim()) return $("#txMsg").focus();
+  if (!wch) return log("connect to the display first", "err");
+  const { bytes } = textPayload(cfg);
+  log(`sending text (${[...cfg.text].length} chars, ${bytes.length} B)`);
+  const r = await upload(3, bytes, $("#txBar"), false, 12);
+  if (r === "done") log("text is on the display. It keeps running after you disconnect", "rx");
+};
+
+/* saved list → display memory */
+const txLoad = () => { try { return JSON.parse(localStorage.getItem("idm-tx-list") || "[]"); } catch { return []; } };
+const txStore = l => { try { localStorage.setItem("idm-tx-list", JSON.stringify(l)); } catch { log("browser storage unavailable; list won't be kept", "err"); } };
+const MODE_NAMES = ["Pin", "Scroll left", "Scroll right", "Scroll up", "Scroll down", "Flashing", "Breathing", "Snowflakes", "Laser"];
+function txList() {
+  const list = txLoad(), ol = $("#txList");
+  ol.innerHTML = "";
+  if (!list.length) { ol.innerHTML = '<li class="empty">Nothing saved yet. Use "Add to saved list" above.</li>'; return; }
+  list.forEach((c, i) => {
+    const li = document.createElement("li");
+    const dot = document.createElement("span"); dot.className = "dot";
+    dot.style.background = c.colMode === 1 ? c.color : "linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f)";
+    const t = document.createElement("span"); t.className = "t"; t.textContent = c.text;
+    const m = document.createElement("span"); m.className = "m"; m.textContent = MODE_NAMES[c.mode] || "";
+    const ed = document.createElement("button"); ed.textContent = "Edit"; ed.onclick = () => txApply(c);
+    const rm = document.createElement("button"); rm.textContent = "✕"; rm.title = "Remove";
+    rm.onclick = () => { const l = txLoad(); l.splice(i, 1); txStore(l); txList(); };
+    li.append(dot, t, m, ed, rm); ol.appendChild(li);
+  });
+}
+$("#txAdd").onclick = () => {
+  const c = txCfg(); if (!c.text.trim()) return $("#txMsg").focus();
+  const l = txLoad(); if (l.length >= 12) return log("the display holds up to 12 saved items", "err");
+  l.push(c); txStore(l); txList(); log(`added "${c.text}" to the saved list`);
+};
+let txArm = null;
+$("#txWrite").onclick = async () => {
+  const list = txLoad(), btn = $("#txWrite");
+  if (!list.length) return log("the saved list is empty", "err");
+  if (!wch) return log("connect to the display first", "err");
+  if (!txArm) {
+    btn.textContent = "Tap again to replace display memory";
+    txArm = setTimeout(() => { txArm = null; btn.textContent = "Write list to display"; }, 4000);
+    return;
+  }
+  clearTimeout(txArm); txArm = null; btn.textContent = "Writing…"; btn.disabled = true;
+  try {
+    const hold = +$("#txHold").value, prof = textProfile();
+    const ackP = waitAck(3000);
+    await send(new Uint8Array([17, 0, 2, 1, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]));   /* clear saved items */
+    await ackP;
+    for (let i = 0; i < list.length; i++) {
+      $("#txWBar").style.width = (i / list.length * 100) + "%";
+      const r = await upload(3, textPayload(list[i], prof).bytes, null, true, i, hold);
+      if (r !== "done") { log(`stopped at item ${i + 1}: ${r}`, "err"); return; }
+      log(`saved item ${i + 1}/${list.length}: "${list[i].text}"`, "rx");
+    }
+    $("#txWBar").style.width = "100%";
+    log("saved list written. The display now rotates through it on its own", "rx");
+  } finally { btn.textContent = "Write list to display"; btn.disabled = false; }
+};
+
+try { const cur = JSON.parse(localStorage.getItem("idm-tx-current") || "null"); if (cur) txApply(cur); } catch {}
+txPanel(); txRender(); txList();
+
+/* ================= standalone clock: pre-rendered GIF ================= */
+/* Minimal GIF89a encoder (global palette, LZW, optional transparent diff frames). */
+function encodeGIF(w, h, frames, delaysCs, diff = true) {
+  /* palette: quantise harder until it fits in 255 colours (+1 transparent) */
+  let mask = 0xff, pal;
+  for (const m of [0xff, 0xf8, 0xf0, 0xe0, 0xc0, 0x80]) {
+    mask = m; pal = new Map();
+    for (const f of frames) { for (let i = 0; i < f.length; i += 3) { const k = ((f[i] & m) << 16) | ((f[i + 1] & m) << 8) | (f[i + 2] & m); if (!pal.has(k)) pal.set(k, pal.size); } if (pal.size > 255) break; }
+    if (pal.size <= 255) break;
+  }
+  const trans = pal.size; let ctBits = 1; while ((1 << ctBits) < pal.size + 1) ctBits++;
+  const out = []; const u16 = v => out.push(v & 255, (v >> 8) & 255); const str = s => { for (const c of s) out.push(c.charCodeAt(0)); };
+  str("GIF89a"); u16(w); u16(h); out.push(0x80 | ((ctBits - 1) << 4) | (ctBits - 1), 0, 0);
+  const table = new Array(3 << ctBits).fill(0);
+  for (const [k, i] of pal) { table[i * 3] = k >> 16; table[i * 3 + 1] = (k >> 8) & 255; table[i * 3 + 2] = k & 255; }
+  out.push(...table);
+  out.push(0x21, 0xff, 0x0b); str("NETSCAPE2.0"); out.push(3, 1, 0, 0, 0);          /* loop forever */
+  const minCode = Math.max(2, ctBits);
+  const idxOf = (f, i) => pal.get(((f[i] & mask) << 16) | ((f[i + 1] & mask) << 8) | (f[i + 2] & mask));
+  let prev = null;
+  frames.forEach((f, fi) => {
+    let x0 = 0, y0 = 0, x1 = w - 1, y1 = h - 1, useT = false;
+    if (diff && prev) {
+      x0 = w; y0 = h; x1 = -1; y1 = -1;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 3;
+        if (idxOf(f, i) !== idxOf(prev, i)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      }
+      if (x1 < 0) { x0 = y0 = x1 = y1 = 0; }
+      useT = true;
+    }
+    const d = Math.max(1, Math.min(65535, Math.round(delaysCs[fi])));
+    out.push(0x21, 0xf9, 4, (1 << 2) | (useT ? 1 : 0)); u16(d); out.push(useT ? trans : 0, 0);
+    const fw = x1 - x0 + 1, fh = y1 - y0 + 1;
+    out.push(0x2c); u16(x0); u16(y0); u16(fw); u16(fh); out.push(0);
+    const ix = new Array(fw * fh);
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+      const i = ((y0 + y) * w + x0 + x) * 3, c = idxOf(f, i);
+      ix[y * fw + x] = useT && c === idxOf(prev, i) ? trans : c;
+    }
+    out.push(minCode); lzwEncode(ix, minCode, out); out.push(0);
+    prev = f;
+  });
+  out.push(0x3b);
+  return new Uint8Array(out);
+}
+function lzwEncode(ix, minCode, out) {
+  const clear = 1 << minCode, eoi = clear + 1;
+  let next = eoi + 1, size = minCode + 1, table = new Map(), cur = 0, shift = 0, block = [];
+  const emit = code => {
+    cur |= code << shift; shift += size;
+    while (shift >= 8) { block.push(cur & 255); cur >>>= 8; shift -= 8; if (block.length === 255) { out.push(255, ...block); block = []; } }
+  };
+  emit(clear);
+  let pre = ix[0];
+  for (let i = 1; i < ix.length; i++) {
+    const k = ix[i], key = (pre << 8) | k, c = table.get(key);
+    if (c !== undefined) { pre = c; continue; }
+    emit(pre);
+    if (next === 4096) { emit(clear); next = eoi + 1; size = minCode + 1; table = new Map(); }
+    else { if (next >= (1 << size)) size++; table.set(key, next++); }
+    pre = k;
+  }
+  emit(pre); emit(eoi);
+  if (shift > 0) { block.push(cur & 255); }
+  if (block.length) out.push(block.length, ...block);
+}
+
+/* build the clock GIF so frame 0 is the minute showing at `start` */
+function buildClockGif(start, minutes, diff) {
+  const { w, h } = panel(), frames = [], delays = [];
+  const m0 = new Date(start); m0.setSeconds(0, 0);
+  for (let k = 0; k < minutes; k++) {
+    const d = new Date(m0.getTime() + k * 60000);
+    frames.push(renderClock(d, true).slice());
+    delays.push(k === 0 ? (m0.getTime() + 60000 - start) / 10 : 6000);
+  }
+  return encodeGIF(w, h, frames, delays, diff);
+}
+let gifRate = 5000;                              /* bytes/s; refined after each upload */
+$("#ccGif").onclick = async () => {
+  if (!wch) return log("connect to the display first", "err");
+  if (CC.running) clockStop();
+  const btn = $("#ccGif"), minutes = +$("#ccSpan").value, diff = $("#ccGifMode").value === "diff";
+  btn.disabled = true; btn.textContent = "Building…";
+  try {
+    for (let pass = 1; pass <= 2; pass++) {
+      const sizeGuess = buildClockGif(Date.now(), Math.min(minutes, 2), diff).length * minutes / 2;
+      const planned = Date.now() + (sizeGuess / gifRate + 1.2) * 1000;
+      const gif = buildClockGif(planned, minutes, diff);
+      $("#ccGifInfo").textContent = `Clock GIF: ${minutes} frames, ${(gif.length / 1024).toFixed(1)} KB. Sending…`;
+      btn.textContent = "Sending…";
+      await send(pSyncTime(), true);
+      const t0 = Date.now(), r = await upload(1, gif, $("#ccGifBar"), true, 13);
+      const t1 = Date.now();
+      if (r === "nospace") { $("#ccGifInfo").textContent = `Too big for the display (${(gif.length / 1024).toFixed(0)} KB). Try a shorter length or "Full frames" off.`; return; }
+      if (r !== "done") { $("#ccGifInfo").textContent = `Upload failed (${r}). Check the log.`; return; }
+      gifRate = gif.length / Math.max(0.5, (t1 - t0) / 1000);
+      const off = (t1 - planned) / 1000;
+      log(`standalone clock sent: ${(gif.length / 1024).toFixed(1)} KB in ${((t1 - t0) / 1000).toFixed(1)} s, timing off by ${off.toFixed(1)} s`, "rx");
+      if (Math.abs(off) <= 4 || pass === 2) {
+        $("#ccGifInfo").textContent = `Running on the display without the phone (${minutes / 60} h loop, ${(gif.length / 1024).toFixed(1)} KB). ` +
+          `It may slowly drift; press Send again to resync.`;
+        return;
+      }
+      log("re-sending with corrected timing…");
+    }
+  } finally { btn.disabled = false; btn.textContent = "Send to display"; }
+};
+function ccGifHint() {
+  const c = ccCfg(), span = +$("#ccSpan").value, warn = [];
+  if (c.dateFmt !== "none" || c.face === "day") warn.push("the date/day won't change when the loop repeats");
+  if (span === 720 && c.h24) warn.push("a 12-hour loop needs the 12-hour setting (untick 24-hour)");
+  if (span === 60) warn.push("1-hour loop is for testing: the hour will be wrong after it repeats");
+  $("#ccGifInfo").textContent = "The time is drawn in advance and timed to the minute, so seconds options are ignored." +
+    (warn.length ? " Note: " + warn.join("; ") + "." : "");
+}
+$$("#customClock select, #customClock input").forEach(el => el.addEventListener("input", ccGifHint));
+ccGifHint();
 
 resizePad(); renderImg();
 log("ready. Press Connect and pick your IDM-… display");

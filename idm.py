@@ -88,8 +88,8 @@ def p_diy_pixels(r, g, b, xys):
 def upload_frames(kind: int, data: bytes, slot: int = 13, hold_s: int = 0):
     """
     Build the 4 KB framed packets for image (kind=2, raw RGB) or GIF (kind=1, file bytes).
-    16-byte header per 4 KB block:
-      [len BE16][kind][0][0 first|2 continued][total LE32][crc32 LE32][hold BE16][slot]
+    16-byte header per 4 KB block (all little-endian):
+      [len16][kind][0][0 first|2 continued][total32][crc32][hold16 seconds][slot]
     slot 12/13 = show now without saving to a playlist slot.
     """
     crc = zlib.crc32(data) & 0xFFFFFFFF
@@ -97,9 +97,9 @@ def upload_frames(kind: int, data: bytes, slot: int = 13, hold_s: int = 0):
     for i in range(0, len(data), CHUNK_4K):
         chunk = data[i:i + CHUNK_4K]
         n = len(chunk) + 16
-        hdr = struct.pack(">H", n) + bytes([kind, 0, 0 if i == 0 else 2])
+        hdr = struct.pack("<H", n) + bytes([kind, 0, 0 if i == 0 else 2])
         hdr += struct.pack("<II", len(data), crc)
-        hdr += struct.pack(">H", 0 if slot == 12 else hold_s) + bytes([slot])
+        hdr += struct.pack("<H", 0 if slot >= 12 else hold_s) + bytes([slot])
         out.append(hdr + chunk)
     return out
 
