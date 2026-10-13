@@ -66,6 +66,16 @@ canvas.preview{image-rendering:pixelated;width:128px;height:128px;border-radius:
 input[type=checkbox]{min-height:0;width:16px;height:16px;margin:0;accent-color:var(--accent)}
 label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
 .team{display:flex;align-items:center;gap:6px}
+.cc-wrap{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:720px){.cc-wrap{grid-template-columns:minmax(0,1fr)}}
+.cc-prev{display:flex;flex-direction:column;align-items:center;gap:4px}
+#ccLed{width:100%;max-width:320px;height:auto;border-radius:10px;background:#050505;border:1px solid var(--line)}
+.cc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 14px}
+.cc-grid>label{display:flex;flex-direction:column;align-items:stretch;gap:4px;min-width:0;color:var(--muted)}
+.cc-grid select,.cc-grid input[type=file]{width:100%;min-width:0}
+.cc-grid input[type=range]{min-width:0;width:100%}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink)}
+details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
 .big{font-family:var(--mono);font-size:28px;width:90px;text-align:center}
 @media (max-width:420px){main{padding:12px 16px}section{padding:14px}}
 </style>
@@ -98,7 +108,7 @@ label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:6px;c
   </section>
 
   <section>
-    <h2>Clock face</h2>
+    <h2>Built-in clock</h2>
     <div class="row"><label>Style</label>
       <select id="cStyle"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select>
       <label>Colour</label><input type="color" id="cColor" value="#ffffff">
@@ -108,6 +118,77 @@ label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:6px;c
       <label><input type="checkbox" id="c24" checked> 24-hour</label>
     </div>
     <div class="row"><button class="primary" id="clockBtn">Show clock</button></div>
+    <p class="note">These faces are built into the display's firmware. To design your own, use Custom clock below.</p>
+  </section>
+
+  <section class="wide" id="customClock">
+    <h2>Custom clock</h2>
+    <div class="cc-wrap">
+      <div class="cc-prev">
+        <canvas id="ccLed"></canvas>
+        <div class="row" style="justify-content:center">
+          <button class="primary" id="ccRun">Start on display</button>
+        </div>
+        <p class="note" id="ccState">Preview only. Connect, then press Start.</p>
+      </div>
+      <div class="cc-ctl">
+        <div class="cc-grid">
+          <label>Face<select id="ccFace">
+            <option value="digital">Digital</option>
+            <option value="stacked">Stacked (HH over MM)</option>
+            <option value="day">Day + time + date</option>
+            <option value="analog">Analog</option>
+            <option value="binary">Binary</option>
+          </select></label>
+          <label>Font<select id="ccFont">
+            <option value="bold">Bold 5×7</option>
+            <option value="thin">Classic 3×5</option>
+            <option value="tall">Tall 3×7</option>
+          </select></label>
+          <label>Time colour<span class="row" style="margin:0"><input type="color" id="ccColor" value="#00e0ff">
+            <span class="chk"><input type="checkbox" id="ccRainbow"> Rainbow</span></span></label>
+          <label>Accent colour<input type="color" id="ccAccent" value="#ff5a3c"></label>
+          <label>Background<select id="ccBg">
+            <option value="none">Black</option><option value="solid">Solid</option>
+            <option value="gradient">Gradient</option><option value="image">Picture</option>
+          </select></label>
+          <label class="ccBgOpt" data-for="solid gradient">Colours<span class="row" style="margin:0">
+            <input type="color" id="ccBg1" value="#1a0a3a"><input type="color" id="ccBg2" value="#000000" class="ccBgOpt" data-for="gradient"></span></label>
+          <label class="ccBgOpt" data-for="image">Picture<input type="file" id="ccBgFile" accept="image/*"></label>
+          <label class="ccBgOpt" data-for="solid gradient image">Background brightness<input type="range" id="ccBgDim" min="5" max="100" value="40"></label>
+          <label>Date format<select id="ccDateFmt">
+            <option value="none">No date</option><option value="mon-d">OCT 13</option>
+            <option value="d-mon">13 OCT</option><option value="m/d">10/13</option><option value="d/m">13/10</option>
+          </select></label>
+          <label>Update every<select id="ccEvery">
+            <option value="60">Minute</option><option value="10">10 seconds</option><option value="1">Second</option>
+          </select></label>
+        </div>
+        <div class="row">
+          <span class="chk"><input type="checkbox" id="cc24" checked> 24-hour</span>
+          <span class="chk"><input type="checkbox" id="ccLead"> Leading zero</span>
+          <span class="chk" title="Needs 10-second or 1-second updates"><input type="checkbox" id="ccSecBar"> Seconds bar</span>
+          <span class="chk" title="Needs 1-second updates"><input type="checkbox" id="ccBlink"> Blinking colon</span>
+        </div>
+        <details>
+          <summary>Advanced</summary>
+          <div class="row"><label>Send updates as</label><select id="ccMethod">
+            <option value="pixels">Changed pixels only (fast, no flicker)</option>
+            <option value="image">Full image each time</option>
+          </select></div>
+          <p class="note">Try "Full image" if the display doesn't update properly.</p>
+        </details>
+        <div class="row" style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px">
+          <input id="ccName" placeholder="Name this face" style="flex:1;min-width:120px">
+          <button id="ccSave">Save face</button>
+        </div>
+        <div class="row">
+          <select id="ccSaved" style="flex:1;min-width:120px"><option value="">Saved faces…</option></select>
+          <button id="ccDelete">Delete</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">The page draws each frame and sends it to the display, so keep this page open and the phone connected while the custom clock runs. The screen stays on automatically while it's running.</p>
   </section>
 
   <section>
@@ -209,7 +290,7 @@ async function connect(showAll = false) {
     return;
   }
   log("selected: " + (dev.name || "(no name)") + "  id " + dev.id);
-  dev.addEventListener("gattserverdisconnected", () => setConnected(false));
+  dev.addEventListener("gattserverdisconnected", () => { setConnected(false); if (typeof clockStop === "function") clockStop(); });
   setStatus("Connecting…");
   const server = await dev.gatt.connect();
   const svc = await server.getPrimaryService(SERVICE);
@@ -232,8 +313,9 @@ function setConnected(on) {
   $("#connectAll").hidden = on;
   log(on ? "connected to " + (dev?.name || "?") : "disconnected", on ? "rx" : "err");
 }
+let quietRx = false;
 function onNotify(b) {
-  log("← " + hex(b), "rx");
+  if (!quietRx) log("← " + hex(b), "rx");
   const w = ackWaiters.shift(); if (w) w(b);
 }
 function waitAck(ms = 5000) {
@@ -306,17 +388,18 @@ function uploadFrames(kind, data, slot = 13) {
   }
   return out;
 }
-async function upload(kind, data, bar) {
+async function upload(kind, data, bar, quiet = false) {
   const frames = uploadFrames(kind, data);
+  bar = bar || { style: {} };
   bar.style.width = "0";
   for (let i = 0; i < frames.length; i++) {
     const ackP = waitAck();
-    await send(frames[i], i > 0);
+    await send(frames[i], quiet || i > 0);
     const ack = await ackP;
     bar.style.width = ((i + 1) / frames.length * 100) + "%";
     if (!ack) { log(`no ack for block ${i + 1}/${frames.length}`, "err"); continue; }
     const st = ack[4];
-    if (st === 3) { log("upload complete", "rx"); bar.style.width = "100%"; return; }
+    if (st === 3) { if (!quiet) log("upload complete", "rx"); bar.style.width = "100%"; return; }
     if (st === 2) { log("device: not enough space", "err"); return; }
     if (st === 0) { log("device: invalid transfer", "err"); return; }
   }
@@ -443,6 +526,362 @@ $("#rawSend").onclick = () => {
   send(new Uint8Array(h.match(/../g).map(x => parseInt(x, 16))));
 };
 $("#raw").onkeydown = e => e.key === "Enter" && $("#rawSend").click();
+
+/* ================= custom clock ================= */
+const FONTS = (() => {
+  const g = rows => rows.split(" ");
+  const thin = {
+    "0":"111 101 101 101 111","1":"010 110 010 010 111","2":"111 001 111 100 111","3":"111 001 111 001 111",
+    "4":"101 101 111 001 001","5":"111 100 111 001 111","6":"111 100 111 101 111","7":"111 001 001 001 001",
+    "8":"111 101 111 101 111","9":"111 101 111 001 111",
+    A:"010 101 111 101 101",B:"110 101 110 101 110",C:"011 100 100 100 011",D:"110 101 101 101 110",
+    E:"111 100 110 100 111",F:"111 100 110 100 100",G:"011 100 101 101 011",H:"101 101 111 101 101",
+    I:"111 010 010 010 111",J:"001 001 001 101 010",K:"101 101 110 101 101",L:"100 100 100 100 111",
+    M:"101 111 111 101 101",N:"110 101 101 101 101",O:"010 101 101 101 010",P:"110 101 110 100 100",
+    Q:"010 101 101 110 011",R:"110 101 110 101 101",S:"011 100 010 001 110",T:"111 010 010 010 010",
+    U:"101 101 101 101 111",V:"101 101 101 101 010",W:"101 101 111 111 101",X:"101 101 010 101 101",
+    Y:"101 101 010 010 010",Z:"111 001 010 100 111",
+    ":":"0 1 0 1 0","/":"001 001 010 100 100","-":"000 000 111 000 000"," ":"00 00 00 00 00"
+  };
+  const bold = {
+    "0":"01110 10001 10011 10101 11001 10001 01110","1":"00100 01100 00100 00100 00100 00100 01110",
+    "2":"01110 10001 00001 00010 00100 01000 11111","3":"11111 00010 00100 00010 00001 10001 01110",
+    "4":"00010 00110 01010 10010 11111 00010 00010","5":"11111 10000 11110 00001 00001 10001 01110",
+    "6":"00110 01000 10000 11110 10001 10001 01110","7":"11111 00001 00010 00100 01000 01000 01000",
+    "8":"01110 10001 10001 01110 10001 10001 01110","9":"01110 10001 10001 01111 00001 00010 01100",
+    ":":"0 0 1 0 1 0 0"," ":"00 00 00 00 00 00 00"
+  };
+  const tall = {
+    "0":"111 101 101 101 101 101 111","1":"010 110 010 010 010 010 111","2":"111 001 001 111 100 100 111",
+    "3":"111 001 001 111 001 001 111","4":"101 101 101 111 001 001 001","5":"111 100 100 111 001 001 111",
+    "6":"111 100 100 111 101 101 111","7":"111 001 001 001 001 001 001","8":"111 101 101 111 101 101 111",
+    "9":"111 101 101 111 001 001 111",":":"0 0 1 0 1 0 0"," ":"00 00 00 00 00 00 00"
+  };
+  const build = t => Object.fromEntries(Object.entries(t).map(([k, v]) => [k, g(v)]));
+  return { thin: build(thin), bold: build(bold), tall: build(tall) };
+})();
+const glyph = (font, ch) => FONTS[font][ch] || FONTS.thin[ch] || FONTS.thin[" "];
+const gapAfter = (str, i, tight) => tight && (str[i] === ":" || str[i + 1] === ":") ? 0 : 1;
+function textSize(str, font, s = 1, tight = false) {
+  let w = 0, h = 0;
+  [...str].forEach((ch, i) => { const gl = glyph(font, ch); w += gl[0].length + (i < str.length - 1 ? gapAfter(str, i, tight) : 0); h = Math.max(h, gl.length); });
+  return { w: w * s, h: h * s };
+}
+/* largest integer scale that fits a box */
+function fitScale(str, font, maxW, maxH, tight = false) {
+  const { w, h } = textSize(str, font, 1, tight);
+  return Math.max(1, Math.min(Math.floor(maxW / w), Math.floor(maxH / h)));
+}
+
+const CC = {
+  W: 32, H: 32, buf: null, last: null, running: false, pushing: false, pending: false,
+  lastKey: "", wake: null, bgImg: null, timer: null, previewTimer: null
+};
+const ccCfg = () => ({
+  face: $("#ccFace").value, font: $("#ccFont").value, color: $("#ccColor").value, rainbow: $("#ccRainbow").checked,
+  accent: $("#ccAccent").value, bg: $("#ccBg").value, bg1: $("#ccBg1").value, bg2: $("#ccBg2").value,
+  bgDim: +$("#ccBgDim").value, dateFmt: $("#ccDateFmt").value, every: +$("#ccEvery").value,
+  h24: $("#cc24").checked, lead: $("#ccLead").checked, secBar: $("#ccSecBar").checked, blink: $("#ccBlink").checked,
+  method: $("#ccMethod").value
+});
+function ccApply(c) {
+  const set = (id, v) => { const el = $(id); if (!el || v === undefined) return; el.type === "checkbox" ? el.checked = v : el.value = v; };
+  set("#ccFace", c.face); set("#ccFont", c.font); set("#ccColor", c.color); set("#ccRainbow", c.rainbow);
+  set("#ccAccent", c.accent); set("#ccBg", c.bg); set("#ccBg1", c.bg1); set("#ccBg2", c.bg2); set("#ccBgDim", c.bgDim);
+  set("#ccDateFmt", c.dateFmt); set("#ccEvery", c.every); set("#cc24", c.h24); set("#ccLead", c.lead);
+  set("#ccSecBar", c.secBar); set("#ccBlink", c.blink); set("#ccMethod", c.method);
+  ccBgVis(); ccChanged();
+}
+
+/* ---- frame buffer helpers ---- */
+const hexRGB = h => rgbOf(h);
+const hsv = (hdeg, s = 1, v = 1) => {
+  const f = n => { const k = (n + hdeg / 60) % 6; return Math.round(255 * (v - v * s * Math.max(0, Math.min(k, 4 - k, 1)))); };
+  return [f(5), f(3), f(1)];
+};
+function px(x, y, rgb) {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= CC.W || y >= CC.H) return;
+  const i = (y * CC.W + x) * 3; CC.buf[i] = rgb[0]; CC.buf[i + 1] = rgb[1]; CC.buf[i + 2] = rgb[2];
+}
+function line(x0, y0, x1, y1, rgb) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (;;) { px(x0, y0, rgb); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
+}
+/* draws text; colour may be an [r,g,b] or a function (x,y)=>[r,g,b] */
+function text(str, font, x, y, s, col, hideColon = false, tight = false) {
+  let cx = x;
+  for (let ci = 0; ci < str.length; ci++) {
+    const ch = str[ci];
+    const gl = glyph(font, ch);
+    if (!(hideColon && ch === ":")) {
+      gl.forEach((row, ry) => [...row].forEach((b, rx) => {
+        if (b !== "1") return;
+        for (let a = 0; a < s; a++) for (let c = 0; c < s; c++) {
+          const X = cx + rx * s + c, Y = y + ry * s + a;
+          px(X, Y, typeof col === "function" ? col(X, Y) : col);
+        }
+      }));
+    }
+    cx += (gl[0].length + gapAfter(str, ci, tight)) * s;
+  }
+}
+const centerX = (str, font, s, tight = false) => Math.max(0, Math.floor((CC.W - textSize(str, font, s, tight).w) / 2));
+
+/* ---- background ---- */
+const bgCanvas = document.createElement("canvas");
+function drawBackground(c) {
+  CC.buf.fill(0);
+  if (c.bg === "none") return;
+  const dim = c.bgDim / 100;
+  if (c.bg === "image" && CC.bgImg) {
+    bgCanvas.width = CC.W; bgCanvas.height = CC.H;
+    const ctx = bgCanvas.getContext("2d"), iw = CC.bgImg.width, ih = CC.bgImg.height, s = Math.max(CC.W / iw, CC.H / ih);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(CC.bgImg, (CC.W - iw * s) / 2, (CC.H - ih * s) / 2, iw * s, ih * s);
+    const d = ctx.getImageData(0, 0, CC.W, CC.H).data;
+    for (let i = 0, j = 0; i < d.length; i += 4) { CC.buf[j++] = d[i] * dim; CC.buf[j++] = d[i + 1] * dim; CC.buf[j++] = d[i + 2] * dim; }
+    return;
+  }
+  const a = hexRGB(c.bg1), b = c.bg === "gradient" ? hexRGB(c.bg2) : a;
+  for (let y = 0; y < CC.H; y++) {
+    const t = CC.H > 1 ? y / (CC.H - 1) : 0, col = a.map((v, k) => (v + (b[k] - v) * t) * dim);
+    for (let x = 0; x < CC.W; x++) px(x, y, col);
+  }
+}
+
+/* ---- strings ---- */
+const MON = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const DAY = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+function timeParts(d, c) {
+  let h = d.getHours();
+  if (!c.h24) { h = h % 12 || 12; }
+  const hh = c.lead || c.h24 ? String(h).padStart(2, "0") : String(h);
+  return { hh, mm: String(d.getMinutes()).padStart(2, "0") };
+}
+function dateStr(d, c) {
+  const m = d.getMonth(), day = d.getDate();
+  switch (c.dateFmt) {
+    case "mon-d": return `${MON[m]} ${day}`;
+    case "d-mon": return `${day} ${MON[m]}`;
+    case "m/d": return `${m + 1}/${day}`;
+    case "d/m": return `${day}/${m + 1}`;
+    default: return "";
+  }
+}
+
+/* ---- render one frame ---- */
+function renderClock(d = new Date()) {
+  const { w, h } = panel(); CC.W = w; CC.H = h;
+  CC.buf = new Uint8Array(w * h * 3);
+  const c = ccCfg();
+  drawBackground(c);
+  const col = c.rainbow ? (x, y) => hsv((x / w) * 300 + d.getMinutes() * 6 + y * 4) : hexRGB(c.color);
+  const acc = hexRGB(c.accent);
+  const { hh, mm } = timeParts(d, c);
+  const hideColon = c.blink && c.every === 1 && d.getSeconds() % 2 === 1;
+  const ds = dateStr(d, c);
+  const secBar = c.secBar && c.every < 60, barH = secBar ? 1 : 0;
+  let face = c.face;
+  if (face === "stacked" && h - barH < textSize("88", c.font === "thin" ? "thin" : c.font).h * 2 + 1) face = "digital";
+
+  if (face === "analog") {
+    const cx = (w - 1) / 2, cy = (h - 1) / 2, r = Math.min(w, h) / 2 - 1;
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * 2 * Math.PI, long = i % 3 === 0 && r > 10;
+      px(cx + Math.sin(a) * r, cy - Math.cos(a) * r, acc);
+      if (long) px(cx + Math.sin(a) * (r - 1), cy - Math.cos(a) * (r - 1), acc);
+    }
+    const mA = (d.getMinutes() + d.getSeconds() / 60) / 60 * 2 * Math.PI;
+    const hA = ((d.getHours() % 12) + d.getMinutes() / 60) / 12 * 2 * Math.PI;
+    const hand = (a, len, rgb) => line(cx, cy, cx + Math.sin(a) * len, cy - Math.cos(a) * len, typeof rgb === "function" ? rgb(cx, cy) : rgb);
+    hand(hA, r * 0.5, col); hand(mA, r * 0.8, col);
+    if (c.every < 60) hand(d.getSeconds() / 60 * 2 * Math.PI, r * 0.9, acc);
+    px(cx, cy, acc);
+  } else if (face === "binary") {
+    const cols = [hh.padStart(2, "0")[0], hh.padStart(2, "0")[1], mm[0], mm[1]].map(Number);
+    const bits = [2, 4, 3, 4], n = cols.length;
+    const cell = Math.max(1, Math.floor(Math.min((w - 2) / (n + 1), (h - 2 - barH) / 4.5)));
+    const dot = Math.max(1, cell - 1), x0 = Math.floor((w - (n * cell + cell)) / 2), y0 = Math.floor((h - barH - 4 * cell) / 2);
+    const dimAcc = acc.map(v => v * 0.18);
+    cols.forEach((v, i) => {
+      for (let b = 0; b < bits[i]; b++) {
+        const on = (v >> b) & 1, x = x0 + i * cell + (i >= 2 ? cell : 0), y = y0 + (3 - b) * cell;
+        for (let a = 0; a < dot; a++) for (let e = 0; e < dot; e++) px(x + e, y + a, on ? (typeof col === "function" ? col(x, y) : col) : dimAcc);
+      }
+    });
+  } else if (face === "stacked") {
+    const gap = h >= 24 ? 2 : 1, avail = h - barH - gap;
+    const s = Math.min(fitScale("88", c.font, w - 2, Math.floor(avail / 2)));
+    const th = textSize("88", c.font, s).h, y0 = Math.floor((h - barH - (th * 2 + gap)) / 2);
+    text(hh.padStart(2, " "), c.font, centerX(hh.padStart(2, " "), c.font, s), y0, s, col);
+    text(mm, c.font, centerX(mm, c.font, s), y0 + th + gap, s, col);
+  } else {
+    const t = `${hh}:${mm}`;
+    const top = face === "day" ? DAY[d.getDay()] : "";
+    const small = (str) => ({ s: Math.max(1, Math.min(fitScale(str || "X", "thin", w - 2, Math.floor(h / 4)), 2)) });
+    let rows = [];
+    const fits = str => str && textSize(str, "thin").w <= w;
+    if (fits(top)) rows.push({ str: top, font: "thin", s: small(top).s, col: acc });
+    rows.push({ str: t, font: c.font, s: 1, col, time: true });
+    if (fits(ds)) rows.push({ str: ds, font: "thin", s: small(ds).s, col: acc });
+    const gap = h >= 24 ? 2 : 1;
+    const fixedH = rows.filter(r => !r.time).reduce((a, r) => a + textSize(r.str, r.font, r.s).h, 0);
+    let availH = h - barH - fixedH - gap * (rows.length - 1);
+    if (availH < textSize(t, c.font).h) {          /* not enough room: drop extras, try thin font */
+      rows = rows.filter(r => r.time); availH = h - barH;
+    }
+    const tr = rows.find(r => r.time), margin = w > 16 ? 2 : 0;
+    if (textSize(t, tr.font).w > w || textSize(t, tr.font).h > availH) tr.font = "thin";
+    tr.tight = textSize(t, tr.font).w > w - margin;
+    tr.s = fitScale(t, tr.font, w - margin, availH, tr.tight);
+    const total = rows.reduce((a, r) => a + textSize(r.str, r.font, r.s).h, 0) + gap * (rows.length - 1);
+    let y = Math.max(0, Math.floor((h - barH - total) / 2));
+    for (const r of rows) {
+      text(r.str, r.font, centerX(r.str, r.font, r.s, r.tight), y, r.s, r.col, r.time && hideColon, r.tight);
+      y += textSize(r.str, r.font, r.s).h + gap;
+    }
+  }
+  if (secBar) {
+    const len = Math.round((d.getSeconds() + 1) / 60 * w);
+    for (let x = 0; x < len; x++) px(x, h - 1, acc);
+  }
+  for (let i = 0; i < CC.buf.length; i++) CC.buf[i] = CC.buf[i] & 0xf8;   /* fewer distinct colours = fewer packets */
+  return CC.buf;
+}
+
+/* ---- LED-style preview ---- */
+function drawPreview(buf) {
+  const cv = $("#ccLed"), p = Math.max(4, Math.floor(320 / Math.max(CC.W, CC.H)));
+  if (cv.width !== CC.W * p || cv.height !== CC.H * p) { cv.width = CC.W * p; cv.height = CC.H * p; }
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, cv.width, cv.height);
+  const r = p * 0.42;
+  for (let y = 0; y < CC.H; y++) for (let x = 0; x < CC.W; x++) {
+    const i = (y * CC.W + x) * 3, R = buf[i], G = buf[i + 1], B = buf[i + 2];
+    ctx.fillStyle = R | G | B ? `rgb(${R},${G},${B})` : "#141414";
+    ctx.beginPath(); ctx.arc(x * p + p / 2, y * p + p / 2, r, 0, 7); ctx.fill();
+  }
+}
+
+/* ---- push to display ---- */
+async function pushFrame(buf, full) {
+  const c = ccCfg();
+  quietRx = true;
+  try {
+    if (full || !CC.last || c.method === "image" || CC.last.length !== buf.length) {
+      await send(pDiy(1), true);
+      if (c.method === "image") await upload(2, buf, null, true);
+      else await sendPixelDiff(buf, null);
+    } else {
+      await sendPixelDiff(buf, CC.last);
+    }
+    CC.last = buf.slice();
+  } finally { quietRx = false; }
+}
+async function sendPixelDiff(buf, prev) {
+  const groups = new Map();
+  for (let y = 0; y < CC.H; y++) for (let x = 0; x < CC.W; x++) {
+    const i = (y * CC.W + x) * 3, r = buf[i], g = buf[i + 1], b = buf[i + 2];
+    if (prev ? (prev[i] === r && prev[i + 1] === g && prev[i + 2] === b) : !(r | g | b)) continue;
+    const k = (r << 16) | (g << 8) | b;
+    if (!groups.has(k)) groups.set(k, []); groups.get(k).push([x, y]);
+  }
+  for (const [k, pts] of groups) {
+    for (let i = 0; i < pts.length; i += 100) {
+      await send(pPixels(k >> 16, (k >> 8) & 255, k & 255, pts.slice(i, i + 100)), true);
+      await new Promise(r => setTimeout(r, 6));
+    }
+  }
+}
+
+/* ---- run loop ---- */
+function frameKey(d, every) {
+  const s = d.getSeconds();
+  return every >= 60 ? `${d.getHours()}:${d.getMinutes()}` : `${d.getHours()}:${d.getMinutes()}:${Math.floor(s / every)}`;
+}
+async function tick(force = false) {
+  const d = new Date(), c = ccCfg(), key = frameKey(d, c.every);
+  if (!force && key === CC.lastKey) return;
+  if (CC.pushing) { CC.pending = true; return; }
+  CC.lastKey = key; CC.pushing = true;
+  try { await pushFrame(renderClock(d), force); }
+  catch (e) { log("clock update failed: " + e.message, "err"); }
+  finally { CC.pushing = false; if (CC.pending) { CC.pending = false; tick(); } }
+}
+async function wakeOn() {
+  try { if ("wakeLock" in navigator && !CC.wake) { CC.wake = await navigator.wakeLock.request("screen"); CC.wake.onrelease = () => CC.wake = null; } } catch {}
+}
+document.addEventListener("visibilitychange", () => { if (CC.running && document.visibilityState === "visible") { wakeOn(); tick(true); } });
+async function clockStart() {
+  if (!wch) { log("connect to the display first", "err"); return; }
+  CC.running = true; CC.last = null; CC.lastKey = "";
+  $("#ccRun").textContent = "Stop"; $("#ccRun").classList.remove("primary");
+  $("#ccState").textContent = "Running on the display. Keep this page open.";
+  await send(pSyncTime());
+  await wakeOn();
+  log("custom clock started", "rx");
+  tick(true);
+  CC.timer = setInterval(() => tick(), 250);
+}
+function clockStop() {
+  if (!CC.running) return;
+  CC.running = false; clearInterval(CC.timer); CC.timer = null;
+  try { CC.wake?.release(); } catch {} CC.wake = null;
+  $("#ccRun").textContent = "Start on display"; $("#ccRun").classList.add("primary");
+  $("#ccState").textContent = "Stopped. The display keeps showing the last frame.";
+  log("custom clock stopped");
+}
+$("#ccRun").onclick = () => CC.running ? clockStop() : clockStart();
+
+/* ---- controls ---- */
+function ccBgVis() {
+  const bg = $("#ccBg").value;
+  $$(".ccBgOpt").forEach(el => el.style.display = el.dataset.for.split(" ").includes(bg) ? "" : "none");
+}
+let ccSaveT;
+function ccChanged() {
+  drawPreview(renderClock());
+  if (CC.running) tick(true);
+  clearTimeout(ccSaveT);
+  ccSaveT = setTimeout(() => { try { localStorage.setItem("idm-cc-current", JSON.stringify(ccCfg())); } catch {} }, 300);
+}
+$$("#customClock select, #customClock input:not([type=file]):not(#ccName)").forEach(el => el.addEventListener("input", () => { ccBgVis(); ccChanged(); }));
+$("#ccBgFile").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image(); img.onload = () => { CC.bgImg = img; ccChanged(); }; img.src = URL.createObjectURL(f);
+};
+$("#size").addEventListener("change", () => { CC.last = null; ccChanged(); });
+
+/* saved faces (kept in this browser) */
+const loadSaved = () => { try { return JSON.parse(localStorage.getItem("idm-cc-faces") || "{}"); } catch { return {}; } };
+function refreshSaved(sel = "") {
+  const faces = loadSaved(), s = $("#ccSaved");
+  s.innerHTML = '<option value="">Saved faces…</option>' + Object.keys(faces).sort().map(n => `<option></option>`).join("");
+  Object.keys(faces).sort().forEach((n, i) => { s.options[i + 1].value = n; s.options[i + 1].textContent = n; });
+  s.value = sel;
+}
+$("#ccSave").onclick = () => {
+  const name = $("#ccName").value.trim(); if (!name) { $("#ccName").focus(); return; }
+  const faces = loadSaved(); faces[name] = ccCfg();
+  try { localStorage.setItem("idm-cc-faces", JSON.stringify(faces)); log(`saved face "${name}"`, "rx"); }
+  catch { log("couldn't save (browser storage unavailable)", "err"); }
+  refreshSaved(name);
+};
+$("#ccSaved").onchange = e => { const f = loadSaved()[e.target.value]; if (f) { ccApply(f); $("#ccName").value = e.target.value; } };
+$("#ccDelete").onclick = () => {
+  const n = $("#ccSaved").value; if (!n) return;
+  const faces = loadSaved(); delete faces[n];
+  try { localStorage.setItem("idm-cc-faces", JSON.stringify(faces)); } catch {}
+  refreshSaved(); log(`deleted face "${n}"`);
+};
+
+try { const cur = JSON.parse(localStorage.getItem("idm-cc-current") || "null"); if (cur) ccApply(cur); } catch {}
+refreshSaved(); ccBgVis();
+drawPreview(renderClock());
+setInterval(() => { if (!CC.running) drawPreview(renderClock()); else if (CC.buf) drawPreview(CC.buf); }, 1000);
 
 resizePad(); renderImg();
 log("ready. Press Connect and pick your IDM-… display");
