@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Matrix Control</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0f0f11">
+<style>
+:root{
+  --bg:#f4f3ef;--panel:#ffffff;--ink:#1b1b1d;--muted:#6b6b72;--line:#dcdad3;
+  --accent:#e2462f;--accent-ink:#fff;--ok:#1f8a4c;--warn:#b5651d;--field:#faf9f6;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f0f11;--panel:#18181b;--ink:#ececee;--muted:#9a9aa3;--line:#2c2c31;
+  --accent:#ff5a3c;--accent-ink:#111;--ok:#3ccf7a;--warn:#f0a050;--field:#111114;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f0f11;--panel:#18181b;--ink:#ececee;--muted:#9a9aa3;--line:#2c2c31;
+  --accent:#ff5a3c;--accent-ink:#111;--ok:#3ccf7a;--warn:#f0a050;--field:#111114;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap}
+h1{font-size:17px;margin:0;letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+.dots{display:grid;grid-template-columns:repeat(3,5px);gap:2px}
+.dots i{width:5px;height:5px;border-radius:1px;background:var(--accent)}
+.dots i:nth-child(2n){opacity:.35}
+#status{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+#status::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
+#status.on::before{background:var(--ok)}
+.spacer{flex:1}
+main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+section.wide{grid-column:1/-1}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 12px;font-weight:600}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+label{font-size:13px;color:var(--muted)}
+button{font:inherit;border:1px solid var(--line);background:var(--field);color:var(--ink);
+  border-radius:8px;padding:8px 12px;cursor:pointer;min-height:38px}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,select{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-height:38px}
+input[type=number]{width:76px}
+input[type=color]{padding:2px;width:46px}
+input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.val{font-family:var(--mono);min-width:3ch;text-align:right}
+.drop{border:1.5px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:13px}
+canvas.preview{image-rendering:pixelated;width:128px;height:128px;border-radius:6px;background:#000;border:1px solid var(--line)}
+#pad{image-rendering:pixelated;width:100%;max-width:420px;aspect-ratio:1;touch-action:none;background:#000;border-radius:8px;cursor:crosshair;display:block}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;flex:1;min-width:100px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+#log{font-family:var(--mono);font-size:12px;background:var(--field);border:1px solid var(--line);border-radius:8px;
+  height:170px;overflow:auto;padding:8px;white-space:pre-wrap;word-break:break-all;margin:0}
+#log .tx{color:var(--accent)} #log .rx{color:var(--ok)} #log .err{color:var(--warn)}
+.note{font-size:13px;color:var(--muted);margin:6px 0 0}
+#unsupported{display:none;background:var(--warn);color:#111;padding:10px 16px;font-size:14px}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.swatches button{width:30px;height:30px;min-height:0;padding:0;border-radius:6px}
+input[type=checkbox]{min-height:0;width:16px;height:16px;margin:0;accent-color:var(--accent)}
+label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.team{display:flex;align-items:center;gap:6px}
+.big{font-family:var(--mono);font-size:28px;width:90px;text-align:center}
+@media (max-width:420px){main{padding:12px 16px}section{padding:14px}}
+</style>
+</head>
+<body>
+<div id="unsupported">This browser doesn't support Web Bluetooth. Use Chrome or Edge on desktop or Android. On iPhone, use the Bluefy browser.</div>
+<header>
+  <h1><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>Matrix Control</h1>
+  <span id="status">Not connected</span>
+  <span class="spacer"></span>
+  <label>Panel <select id="size">
+    <option value="16x16">16×16</option><option value="32x32" selected>32×32</option>
+    <option value="64x64">64×64</option><option value="32x8">32×8</option>
+    <option value="32x16">32×16</option><option value="48x16">48×16</option>
+    <option value="64x16">64×16</option><option value="48x24">48×24</option>
+  </select></label>
+  <button id="connect" class="primary">Connect</button>
+</header>
+
+<main>
+  <section>
+    <h2>Display</h2>
+    <div class="row"><label style="width:78px">Brightness</label><input type="range" id="bright" min="5" max="100" value="60"><span class="val" id="brightV">60</span></div>
+    <div class="row">
+      <button data-cmd="on">Screen on</button><button data-cmd="off">Screen off</button>
+      <button data-cmd="flip1">Flip 180°</button><button data-cmd="flip0">Unflip</button>
+    </div>
+    <div class="row"><button data-cmd="time">Sync clock to this device</button></div>
+  </section>
+
+  <section>
+    <h2>Clock face</h2>
+    <div class="row"><label>Style</label>
+      <select id="cStyle"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select>
+      <label>Colour</label><input type="color" id="cColor" value="#ffffff">
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="cDate"> Show date</label>
+      <label><input type="checkbox" id="c24" checked> 24-hour</label>
+    </div>
+    <div class="row"><button class="primary" id="clockBtn">Show clock</button></div>
+  </section>
+
+  <section>
+    <h2>Solid colour</h2>
+    <div class="row"><input type="color" id="fill" value="#ff3b1f"><button class="primary" id="fillBtn">Fill screen</button></div>
+    <div class="swatches" id="fillSw"></div>
+  </section>
+
+  <section>
+    <h2>Image</h2>
+    <div class="drop" id="imgDrop">Drop an image here, or <input type="file" id="imgFile" accept="image/*"></div>
+    <div class="row"><canvas class="preview" id="imgPrev"></canvas>
+      <div style="flex:1;min-width:140px">
+        <label>Fit</label> <select id="imgFit"><option value="cover">Fill (crop)</option><option value="contain">Fit (letterbox)</option><option value="stretch">Stretch</option></select>
+        <div class="row"><button class="primary" id="imgSend" disabled>Send image</button></div>
+        <div class="row"><div class="bar"><i id="imgBar"></i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Animated GIF</h2>
+    <div class="drop">Pick a GIF that's already the panel's size: <input type="file" id="gifFile" accept="image/gif"></div>
+    <p class="note" id="gifInfo">The GIF is sent as-is, so resize it to the panel first (ezgif.com works well).</p>
+    <div class="row"><button class="primary" id="gifSend" disabled>Send GIF</button><div class="bar"><i id="gifBar"></i></div></div>
+  </section>
+
+  <section>
+    <h2>Countdown · Stopwatch · Score</h2>
+    <div class="row"><label>Countdown</label><input type="number" id="cdM" min="0" max="99" value="5"> m <input type="number" id="cdS" min="0" max="59" value="0"> s</div>
+    <div class="row"><button data-cd="1" class="primary">Start</button><button data-cd="2">Pause</button><button data-cd="3">Resume</button><button data-cd="0">Stop</button></div>
+    <div class="row"><label>Stopwatch</label><button data-sw="1">Start</button><button data-sw="2">Pause</button><button data-sw="3">Resume</button><button data-sw="0">Reset</button></div>
+    <div class="row"><label style="width:100%">Score</label>
+      <span class="team"><button data-sc="a-">−</button><input class="big" id="scA" type="number" value="0" min="0" max="999"><button data-sc="a+">+</button></span>
+      <span class="team"><button data-sc="b-">−</button><input class="big" id="scB" type="number" value="0" min="0" max="999"><button data-sc="b+">+</button></span>
+    </div>
+  </section>
+
+  <section class="wide">
+    <h2>Live draw</h2>
+    <div class="row" style="align-items:flex-start;gap:16px">
+      <canvas id="pad"></canvas>
+      <div style="flex:1;min-width:200px">
+        <div class="row"><label>Brush</label><input type="color" id="brush" value="#00e0ff">
+          <label><input type="checkbox" id="eraser"> Eraser</label></div>
+        <div class="swatches" id="brushSw"></div>
+        <div class="row"><button id="padStart" class="primary">Start drawing on panel</button><button id="padClear">Clear</button></div>
+        <div class="row"><button id="padSend">Send canvas as image</button></div>
+        <p class="note">Pixels show up on the panel as you draw. Use "Send canvas as image" to push the whole picture in one go.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wide">
+    <h2>Raw command &amp; log</h2>
+    <div class="row"><input id="raw" style="flex:1;font-family:var(--mono)" placeholder="hex bytes, e.g. 05 00 04 80 32"><button id="rawSend">Send</button></div>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script>
+"use strict";
+const SERVICE = 0x00fa, WRITE = 0xfa02;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+let dev = null, wch = null, chunk = 509, busy = Promise.resolve();
+const ackWaiters = [];
+
+if (!navigator.bluetooth) $("#unsupported").style.display = "block";
+
+/* ---------- log ---------- */
+function log(msg, cls = "") {
+  const el = $("#log"), line = document.createElement("div");
+  line.className = cls; line.textContent = new Date().toLocaleTimeString() + "  " + msg;
+  el.appendChild(line); el.scrollTop = el.scrollHeight;
+  while (el.childNodes.length > 300) el.removeChild(el.firstChild);
+}
+const hex = b => [...b].map(x => x.toString(16).padStart(2, "0")).join(" ");
+
+/* ---------- panel size ---------- */
+function panel() { const [w, h] = $("#size").value.split("x").map(Number); return { w, h }; }
+try { const s = localStorage.getItem("idm-size"); if (s) $("#size").value = s; } catch {}
+$("#size").onchange = () => { try { localStorage.setItem("idm-size", $("#size").value); } catch {} resizePad(); renderImg(); };
+
+/* ---------- connection ---------- */
+async function connect() {
+  if (dev?.gatt.connected) { dev.gatt.disconnect(); return; }
+  try {
+    dev = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "IDM" }, { services: [SERVICE] }],
+      optionalServices: [SERVICE]
+    });
+  } catch (e) {
+    if (e.name === "NotFoundError") return;
+    try { dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE] }); }
+    catch { return; }
+  }
+  dev.addEventListener("gattserverdisconnected", () => setConnected(false));
+  setStatus("Connecting…");
+  const server = await dev.gatt.connect();
+  const svc = await server.getPrimaryService(SERVICE);
+  wch = await svc.getCharacteristic(WRITE);
+  for (const ch of await svc.getCharacteristics()) {
+    if (ch.properties.notify) {
+      await ch.startNotifications();
+      ch.addEventListener("characteristicvaluechanged", e => onNotify(new Uint8Array(e.target.value.buffer)));
+    }
+  }
+  chunk = 509;
+  setConnected(true);
+  send(pSyncTime());
+}
+function setStatus(t, on = false) { const s = $("#status"); s.textContent = t; s.classList.toggle("on", on); }
+function setConnected(on) {
+  setStatus(on ? `Connected · ${dev?.name || "display"}` : "Not connected", on);
+  $("#connect").textContent = on ? "Disconnect" : "Connect";
+  $("#connect").classList.toggle("primary", !on);
+  log(on ? "connected to " + (dev?.name || "?") : "disconnected", on ? "rx" : "err");
+}
+function onNotify(b) {
+  log("← " + hex(b), "rx");
+  const w = ackWaiters.shift(); if (w) w(b);
+}
+function waitAck(ms = 5000) {
+  return new Promise(res => {
+    const t = setTimeout(() => { const i = ackWaiters.indexOf(f); if (i >= 0) ackWaiters.splice(i, 1); res(null); }, ms);
+    const f = b => { clearTimeout(t); res(b); };
+    ackWaiters.push(f);
+  });
+}
+
+/* serialised writes; shrinks packet size if the link MTU is smaller */
+function send(bytes, quiet = false) {
+  const job = busy.then(async () => {
+    if (!wch) { log("not connected", "err"); return; }
+    if (!quiet) log("→ " + hex(bytes.slice(0, 24)) + (bytes.length > 24 ? ` … (${bytes.length} B)` : ""), "tx");
+    for (let i = 0; i < bytes.length;) {
+      const part = bytes.slice(i, i + chunk);
+      try {
+        await (wch.writeValueWithoutResponse ? wch.writeValueWithoutResponse(part) : wch.writeValue(part));
+        i += part.length;
+      } catch (e) {
+        const next = chunk > 244 ? 244 : chunk > 180 ? 180 : chunk > 20 ? 20 : 0;
+        if (!next) { log("write failed: " + e.message, "err"); throw e; }
+        chunk = next; log("reducing packet size to " + chunk, "err");
+      }
+    }
+  });
+  busy = job.catch(() => {});
+  return job;
+}
+
+/* ---------- packet builders (see PROTOCOL.md) ---------- */
+const cmd = body => { const n = body.length + 2; return new Uint8Array([n & 255, n >> 8, ...body]); };
+const pBright = p => cmd([0x04, 0x80, p]);
+const pScreen = on => cmd([0x07, 0x01, on ? 1 : 0]);
+const pFlip = on => cmd([0x06, 0x80, on ? 1 : 0]);
+const pColor = (r, g, b) => cmd([0x02, 0x02, r, g, b]);
+const pDiy = m => cmd([0x04, 0x01, m]);
+const pCountdown = (m, mi, s) => cmd([0x08, 0x80, m, mi, s]);
+const pChrono = m => cmd([0x09, 0x80, m]);
+const pScore = (a, b) => cmd([0x0a, 0x80, a & 255, a >> 8, b & 255, b >> 8]);
+function pSyncTime() {
+  const d = new Date(), wd = d.getDay() === 0 ? 7 : d.getDay();
+  return cmd([0x01, 0x80, d.getFullYear() - 2000, d.getMonth() + 1, d.getDate(), wd, d.getHours(), d.getMinutes(), d.getSeconds()]);
+}
+function pClock(style, date, h24, r, g, b) {
+  return cmd([0x06, 0x01, (style & 0x3f) | (date ? 0x80 : 0) | (h24 ? 0x40 : 0), r, g, b]);
+}
+function pPixels(r, g, b, pts) {
+  const body = [r, g, b]; for (const [x, y] of pts) body.push(x, y);
+  const n = body.length + 5; return new Uint8Array([n & 255, n >> 8, 0x05, 0x01, 0x00, ...body]);
+}
+function crc32(buf) {
+  let c, crc = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    c = (crc ^ buf[i]) & 255;
+    for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xedb88320 : c >>> 1;
+    crc = (crc >>> 8) ^ c;
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function uploadFrames(kind, data, slot = 13) {
+  const crc = crc32(data), out = [];
+  for (let i = 0; i < data.length; i += 4096) {
+    const part = data.subarray(i, i + 4096), n = part.length + 16, h = new Uint8Array(n);
+    const dv = new DataView(h.buffer);
+    dv.setUint16(0, n, false); h[2] = kind; h[3] = 0; h[4] = i ? 2 : 0;
+    dv.setUint32(5, data.length, true); dv.setUint32(9, crc, true);
+    dv.setUint16(13, 0, false); h[15] = slot; h.set(part, 16); out.push(h);
+  }
+  return out;
+}
+async function upload(kind, data, bar) {
+  const frames = uploadFrames(kind, data);
+  bar.style.width = "0";
+  for (let i = 0; i < frames.length; i++) {
+    const ackP = waitAck();
+    await send(frames[i], i > 0);
+    const ack = await ackP;
+    bar.style.width = ((i + 1) / frames.length * 100) + "%";
+    if (!ack) { log(`no ack for block ${i + 1}/${frames.length}`, "err"); continue; }
+    const st = ack[4];
+    if (st === 3) { log("upload complete", "rx"); bar.style.width = "100%"; return; }
+    if (st === 2) { log("device: not enough space", "err"); return; }
+    if (st === 0) { log("device: invalid transfer", "err"); return; }
+  }
+}
+const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+
+/* ---------- controls ---------- */
+$("#connect").onclick = () => connect().catch(e => { log(e.message, "err"); setStatus("Not connected"); });
+let brightT;
+$("#bright").oninput = e => {
+  $("#brightV").textContent = e.target.value;
+  clearTimeout(brightT); brightT = setTimeout(() => send(pBright(+e.target.value)), 120);
+};
+$$("[data-cmd]").forEach(b => b.onclick = () => ({
+  on: () => send(pScreen(true)), off: () => send(pScreen(false)),
+  flip1: () => send(pFlip(true)), flip0: () => send(pFlip(false)),
+  time: () => send(pSyncTime())
+})[b.dataset.cmd]());
+$("#clockBtn").onclick = () => send(pClock(+$("#cStyle").value, $("#cDate").checked, $("#c24").checked, ...rgbOf($("#cColor").value)));
+$("#fillBtn").onclick = () => send(pColor(...rgbOf($("#fill").value)));
+const PALETTE = ["#ff0000", "#ff7a00", "#ffd400", "#2bd94a", "#00e0ff", "#2457ff", "#a640ff", "#ff3fa4", "#ffffff", "#000000"];
+function swatches(el, onPick) {
+  PALETTE.forEach(c => { const b = document.createElement("button"); b.style.background = c; b.title = c; b.onclick = () => onPick(c); el.appendChild(b); });
+}
+swatches($("#fillSw"), c => { $("#fill").value = c; send(pColor(...rgbOf(c))); });
+swatches($("#brushSw"), c => { $("#brush").value = c; $("#eraser").checked = false; });
+
+$$("[data-cd]").forEach(b => b.onclick = () => send(pCountdown(+b.dataset.cd, +$("#cdM").value, +$("#cdS").value)));
+$$("[data-sw]").forEach(b => b.onclick = () => send(pChrono(+b.dataset.sw)));
+function sendScore() { send(pScore(+$("#scA").value || 0, +$("#scB").value || 0)); }
+$$("[data-sc]").forEach(b => b.onclick = () => {
+  const el = b.dataset.sc[0] === "a" ? $("#scA") : $("#scB");
+  el.value = Math.max(0, Math.min(999, (+el.value || 0) + (b.dataset.sc[1] === "+" ? 1 : -1))); sendScore();
+});
+$("#scA").onchange = $("#scB").onchange = sendScore;
+
+/* ---------- image ---------- */
+let srcImg = null;
+function loadImage(file) {
+  const img = new Image(); img.onload = () => { srcImg = img; renderImg(); $("#imgSend").disabled = false; };
+  img.src = URL.createObjectURL(file);
+}
+function renderImg() {
+  const { w, h } = panel(), c = $("#imgPrev"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d"); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+  if (!srcImg) return;
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  const fit = $("#imgFit").value, iw = srcImg.width, ih = srcImg.height;
+  if (fit === "stretch") return ctx.drawImage(srcImg, 0, 0, w, h);
+  const s = fit === "cover" ? Math.max(w / iw, h / ih) : Math.min(w / iw, h / ih);
+  ctx.drawImage(srcImg, (w - iw * s) / 2, (h - ih * s) / 2, iw * s, ih * s);
+}
+function canvasRGB(c) {
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, out = new Uint8Array(c.width * c.height * 3);
+  for (let i = 0, j = 0; i < d.length; i += 4) { out[j++] = d[i]; out[j++] = d[i + 1]; out[j++] = d[i + 2]; }
+  return out;
+}
+$("#imgFile").onchange = e => e.target.files[0] && loadImage(e.target.files[0]);
+$("#imgFit").onchange = renderImg;
+const drop = $("#imgDrop");
+drop.ondragover = e => { e.preventDefault(); drop.style.borderColor = "var(--accent)"; };
+drop.ondragleave = () => drop.style.borderColor = "";
+drop.ondrop = e => { e.preventDefault(); drop.style.borderColor = ""; const f = e.dataTransfer.files[0]; if (f) loadImage(f); };
+$("#imgSend").onclick = async () => { await send(pDiy(1)); await upload(2, canvasRGB($("#imgPrev")), $("#imgBar")); };
+
+/* ---------- gif ---------- */
+let gifBytes = null;
+$("#gifFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  gifBytes = new Uint8Array(await f.arrayBuffer());
+  const gw = gifBytes[6] | gifBytes[7] << 8, gh = gifBytes[8] | gifBytes[9] << 8, { w, h } = panel();
+  $("#gifInfo").textContent = `${f.name}: ${gw}×${gh}, ${(gifBytes.length / 1024).toFixed(1)} KB` +
+    (gw !== w || gh !== h ? ` ⚠ the panel is ${w}×${h}, so resize the GIF first or it may not display properly` : " ✓ matches the panel");
+  $("#gifSend").disabled = false;
+};
+$("#gifSend").onclick = () => gifBytes && upload(1, gifBytes, $("#gifBar"));
+
+/* ---------- live draw ---------- */
+const pad = $("#pad"); let grid = [], drawing = false, queue = new Map(), flushT = null, diyOn = false;
+function resizePad() {
+  const { w, h } = panel(); pad.width = w; pad.height = h; pad.style.aspectRatio = `${w}/${h}`;
+  grid = Array.from({ length: h }, () => Array(w).fill("#000000")); paintPad();
+}
+function paintPad() {
+  const ctx = pad.getContext("2d");
+  for (let y = 0; y < pad.height; y++) for (let x = 0; x < pad.width; x++) { ctx.fillStyle = grid[y][x]; ctx.fillRect(x, y, 1, 1); }
+}
+function cellAt(e) {
+  const r = pad.getBoundingClientRect();
+  return [Math.floor((e.clientX - r.left) / r.width * pad.width), Math.floor((e.clientY - r.top) / r.height * pad.height)];
+}
+function plot(e) {
+  const [x, y] = cellAt(e); if (x < 0 || y < 0 || x >= pad.width || y >= pad.height) return;
+  const col = $("#eraser").checked ? "#000000" : $("#brush").value;
+  if (grid[y][x] === col) return;
+  grid[y][x] = col; const ctx = pad.getContext("2d"); ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1);
+  if (!diyOn) return;
+  if (!queue.has(col)) queue.set(col, []); queue.get(col).push([x, y]);
+  if (!flushT) flushT = setTimeout(flush, 60);
+}
+function flush() {
+  flushT = null;
+  for (const [col, pts] of queue) for (let i = 0; i < pts.length; i += 100) send(pPixels(...rgbOf(col), pts.slice(i, i + 100)), true);
+  queue.clear();
+}
+pad.onpointerdown = e => { drawing = true; pad.setPointerCapture(e.pointerId); plot(e); };
+pad.onpointermove = e => drawing && plot(e);
+pad.onpointerup = pad.onpointercancel = () => drawing = false;
+$("#padStart").onclick = async () => { await send(pDiy(1)); diyOn = true; log("drawing mode on (panel cleared)", "rx"); resizePad(); };
+$("#padClear").onclick = async () => { resizePad(); if (diyOn) await send(pDiy(1)); };
+$("#padSend").onclick = async () => { await send(pDiy(1)); diyOn = true; await upload(2, canvasRGB(pad), $("#imgBar")); };
+
+/* ---------- raw ---------- */
+$("#rawSend").onclick = () => {
+  const h = $("#raw").value.replace(/[^0-9a-f]/gi, "");
+  if (!h || h.length % 2) return log("enter an even number of hex digits", "err");
+  send(new Uint8Array(h.match(/../g).map(x => parseInt(x, 16))));
+};
+$("#raw").onkeydown = e => e.key === "Enter" && $("#rawSend").click();
+
+resizePad(); renderImg();
+log("ready. Press Connect and pick your IDM-… display");
+</script>
+</body>
+</html>
