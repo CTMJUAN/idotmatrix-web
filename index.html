@@ -296,12 +296,11 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
         <details style="margin-top:10px">
           <summary>How frames are sent</summary>
           <div class="row"><select id="lvMethod">
-            <option value="auto">Automatic (recommended)</option>
+            <option value="image">Whole picture (recommended, glitch-free)</option>
             <option value="pixels">Changed pixels only</option>
-            <option value="image">Whole image each frame</option>
             <option value="direct">Direct frames (experimental, fastest)</option>
           </select></div>
-          <p class="note">Automatic sends only the pixels that changed when that's smaller, otherwise the whole picture. "Direct frames" uses a raw camera-frame command found in the app's code that the app itself never uses; try it if you want more speed.</p>
+          <p class="note">"Whole picture" sends each new frame in blocks the display confirms, so a frame always arrives complete. "Changed pixels" sends less data but can glitch on some displays; it fully redraws whenever the card changes. "Direct frames" uses a raw camera-frame command found in the app's code that the app itself never uses; try it if you want more speed.</p>
         </details>
       </div>
     </div>
@@ -491,14 +490,17 @@ function waitAck(match = () => true, ms = 5000) {
 }
 
 /* serialised writes; shrinks packet size if the link MTU is smaller */
-function send(bytes, quiet = false) {
+/* reliable = use write-with-response so the display confirms each packet (slower, nothing silently dropped) */
+function send(bytes, quiet = false, reliable = false) {
   const job = busy.then(async () => {
     if (!wch) { log("not connected", "err"); return; }
     if (!quiet) log("→ " + hex(bytes.slice(0, 24)) + (bytes.length > 24 ? ` … (${bytes.length} B)` : ""), "tx");
     for (let i = 0; i < bytes.length;) {
       const part = bytes.slice(i, i + chunk);
       try {
-        await (wch.writeValueWithoutResponse ? wch.writeValueWithoutResponse(part) : wch.writeValue(part));
+        const confirmed = reliable && wch.properties?.write && wch.writeValueWithResponse;
+        await (confirmed ? wch.writeValueWithResponse(part)
+          : wch.writeValueWithoutResponse ? wch.writeValueWithoutResponse(part) : wch.writeValue(part));
         i += part.length;
       } catch (e) {
         const next = chunk > 244 ? 244 : chunk > 180 ? 180 : chunk > 20 ? 20 : 0;
@@ -967,18 +969,18 @@ function diffGroups(buf, prev, W, H) {
 }
 /* bytes a pixel-diff update would cost (header 8 per packet + 2 per point) */
 const diffCost = g => { let n = 0; for (const pts of g.values()) n += 8 * Math.ceil(pts.length / 100) + 2 * pts.length; return n; };
-async function sendGroups(groups) {
+async function sendGroups(groups, reliable = false) {
   let n = 0;
   for (const [k, pts] of groups) {
     for (let i = 0; i < pts.length; i += 100) {
       const pk = pPixels(k >> 16, (k >> 8) & 255, k & 255, pts.slice(i, i + 100)); n += pk.length;
-      await send(pk, true);
-      await new Promise(r => setTimeout(r, 6));
+      await send(pk, true, reliable);
+      await new Promise(r => setTimeout(r, reliable ? 2 : 6));
     }
   }
   return n;
 }
-async function sendPixelDiff(buf, prev, W = CC.W, H = CC.H) { return sendGroups(diffGroups(buf, prev, W, H)); }
+async function sendPixelDiff(buf, prev, W = CC.W, H = CC.H) { return sendGroups(diffGroups(buf, prev, W, H), true); }
 /* ---- run loop ---- */
 function frameKey(d, every) {
   const s = d.getSeconds();
@@ -1353,25 +1355,32 @@ function pDirect(buf) {
   return out;
 }
 
-/* ---- send one frame using the chosen method; returns bytes sent ---- */
+/* ---- send one frame using the chosen method; returns bytes sent ----
+   "image"  : whole frame as a 4 KB-block upload; the display acks every block, so a frame arrives whole or not at all
+   "pixels" : only changed pixels, confirmed writes; full clear-and-redraw whenever the scene changes (LV.redraw)
+   "direct" : experimental raw camera frame, no acks */
+const sameBuf = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
 async function lvSend(buf, W, H) {
-  const m = $("#lvMethod").value, full = buf.length + 16 + 300;      /* +300 ≈ cost of the ack round trip */
-  if (m === "direct") { LV.method = "direct"; await send(pDirect(buf), true); await new Promise(r => setTimeout(r, 15)); LV.last = buf; return buf.length + 9; }
-  const canDiff = LV.last && LV.last.length === buf.length && LV.mode;
-  const groups = diffGroups(buf, canDiff ? LV.last : null, W, H);
-  if (canDiff && !groups.size) return 0;                               /* nothing changed */
-  const usePixels = m === "pixels" || (m === "auto" && (diffCost(groups) < full || LV.fails >= 99));
-  if (usePixels) {
-    if (!canDiff) { await send(pDiy(1), true); LV.mode = "diy"; }       /* enter drawing mode, clear */
-    else if (LV.mode !== "diy") { await send(pDiy(3), true); LV.mode = "diy"; }   /* re-enter, keep picture */
-    LV.method = "pixels"; const n = await sendGroups(groups); LV.last = buf; return n;
+  let m = $("#lvMethod").value;
+  if (m === "pixels" || LV.fails >= 99) m = "pixels";
+  if (!LV.redraw && sameBuf(buf, LV.last)) return 0;                  /* nothing changed */
+  if (m === "direct") { LV.method = "direct"; await send(pDirect(buf), true); await new Promise(r => setTimeout(r, 15)); LV.last = buf; LV.redraw = false; return buf.length + 9; }
+  if (m === "pixels") {
+    const full = LV.redraw || !LV.last || LV.mode !== "diy";
+    if (full) { await send(pDiy(1), true, true); LV.mode = "diy"; }   /* clear, then draw every lit pixel */
+    LV.method = "pixels";
+    const n = await sendGroups(diffGroups(buf, full ? null : LV.last, W, H), true);
+    LV.last = buf; LV.redraw = false; return n;
   }
   if (!LV.mode) await send(pDiy(1), true);
   LV.method = "image";
   const r = await upload(2, buf, null, true, 13);
-  if (r !== "done") { LV.fails++; if (LV.fails >= 3 && m === "auto") { LV.fails = 99; log("image frames failing; switching to changed pixels", "err"); } }
-  else if (LV.fails < 99) LV.fails = 0;
-  LV.mode = "image"; LV.last = buf; return buf.length + 16;
+  if (r !== "done") {
+    LV.fails++; LV.last = null;                                       /* unknown state: resend next time */
+    if (LV.fails >= 3) { LV.fails = 99; log("whole-image frames keep failing; switching to changed pixels", "err"); }
+    return 0;
+  }
+  LV.fails = 0; LV.mode = "image"; LV.last = buf; LV.redraw = false; return buf.length + 16;
 }
 
 /* ---- camera / screen ---- */
@@ -1473,7 +1482,7 @@ function cardView(c) {
       if (ms <= 0) return { top: c.name, topCol: acc, big: "NOW!", bigCol: main };
       const dd = Math.floor(ms / 864e5), hh = Math.floor(ms / 36e5) % 24, mm = Math.floor(ms / 6e4) % 60, ss = Math.floor(ms / 1e3) % 60;
       return dd >= 1 ? { top: c.name, topCol: acc, big: `${dd}D`, bigCol: main, bottom: `${hh}H ${mm}M`, botCol: DIM }
-        : { top: c.name, topCol: acc, big: `${hh}:${String(mm).padStart(2, "0")}`, bigCol: main, bottom: `${ss}S`, botCol: DIM };
+        : { top: c.name, topCol: acc, big: `${hh}:${String(mm).padStart(2, "0")}`, bigCol: main, bottom: "LEFT", botCol: DIM };
     }
     case "message": return { big: c.text, bigCol: rgbOf(c.color) };
     case "json": return { top: c.name, topCol: acc, big: String(d.value) + (c.suffix || ""), bigCol: main };
@@ -1591,7 +1600,7 @@ function lvList() {
     const li = document.createElement("li");
     const t = document.createElement("span"); t.className = "t"; t.textContent = c.name || c.text || KIND_LABEL[c.kind];
     const m = document.createElement("span"); m.className = "m"; m.textContent = KIND_LABEL[c.kind];
-    const show = document.createElement("button"); show.textContent = "Show"; show.onclick = () => { LV.idx = i; LV.shownAt = Date.now(); };
+    const show = document.createElement("button"); show.textContent = "Show"; show.onclick = () => { LV.idx = i; LV.shownAt = Date.now(); LV.redraw = true; };
     const upb = document.createElement("button"); upb.textContent = "↑"; upb.title = "Move up"; upb.disabled = i === 0;
     upb.onclick = () => { [LV.cards[i - 1], LV.cards[i]] = [LV.cards[i], LV.cards[i - 1]]; lvSave(); lvList(); };
     const rm = document.createElement("button"); rm.textContent = "✕"; rm.title = "Remove";
@@ -1651,7 +1660,7 @@ function lvFrame() {
   const { w, h } = panel();
   if (LV.src === "info") {
     if (!LV.cards.length) return { buf: new Uint8Array(w * h * 3), w, h };
-    if (Date.now() - LV.shownAt > +$("#lvHold").value * 1000) { LV.idx = (LV.idx + 1) % LV.cards.length; LV.shownAt = Date.now(); }
+    if (Date.now() - LV.shownAt > +$("#lvHold").value * 1000) { LV.idx = (LV.idx + 1) % LV.cards.length; LV.shownAt = Date.now(); LV.redraw = true; }
     LV.idx %= LV.cards.length;
     return { buf: renderCard(LV.cards[LV.idx]), w, h };
   }
@@ -1683,7 +1692,7 @@ async function liveStart() {
   if (CC.running) clockStop();
   try { if (LV.src !== "info") await lvOpen(); }
   catch (e) { return log((LV.src === "camera" ? "camera" : "screen sharing") + " didn't start: " + e.message, "err"); }
-  LV.running = true; LV.last = null; LV.mode = null; LV.fails = 0; LV.statT = performance.now(); LV.statB = LV.statF = 0;
+  LV.running = true; LV.last = null; LV.mode = null; LV.fails = 0; LV.redraw = true; LV.statT = performance.now(); LV.statB = LV.statF = 0;
   $("#lvRun").textContent = "Stop live"; $("#lvRun").classList.remove("primary");
   $("#lvStat").textContent = "Starting…";
   await wakeOn(); refreshDue();
