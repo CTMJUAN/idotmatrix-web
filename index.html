@@ -87,6 +87,10 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
 .txlist .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .txlist .m{font-size:12px;color:var(--muted);white-space:nowrap}
 .txlist button{min-height:32px;padding:4px 10px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 12px;overflow-x:auto}
+.tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--muted);font-weight:600;padding:8px 12px;min-height:40px}
+.tab.on{color:var(--ink);border-bottom-color:var(--accent)}
+#lvLed{width:100%;max-width:320px;height:auto;border-radius:10px;background:#050505;border:1px solid var(--line)}
 .big{font-family:var(--mono);font-size:28px;width:90px;text-align:center}
 @media (max-width:420px){main{padding:12px 16px}section{padding:14px}}
 </style>
@@ -210,6 +214,97 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
       </div>
     </div>
     <p class="note">"Start on display" runs the clock live from this page, so keep the page open and the phone connected (the screen stays on automatically). To have it keep running after you disconnect, use "Run without the phone".</p>
+  </section>
+
+  <section class="wide" id="liveSec">
+    <h2>Live display</h2>
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-src="info" role="tab">Info cards</button>
+      <button class="tab" data-src="camera" role="tab">Camera</button>
+      <button class="tab" data-src="screen" role="tab">Screen</button>
+    </div>
+    <div class="cc-wrap">
+      <div class="cc-prev">
+        <canvas id="lvLed"></canvas>
+        <div class="row" style="justify-content:center"><button class="primary" id="lvRun">Start live</button></div>
+        <p class="note" id="lvStat">Preview only. Connect, then press Start live.</p>
+      </div>
+      <div>
+        <!-- info cards -->
+        <div class="lvPane" data-src="info">
+          <div class="row">
+            <select id="lvType">
+              <option value="weather">Weather</option><option value="crypto">Crypto price</option>
+              <option value="sports">Sports score</option><option value="countdown">Countdown</option>
+              <option value="clock">Clock (your custom face)</option><option value="message">Message</option>
+              <option value="json">Custom data (JSON URL)</option>
+            </select>
+          </div>
+          <div class="lvForm" data-type="weather">
+            <div class="row"><input id="fwCity" placeholder="City, e.g. Boston" style="flex:1;min-width:120px">
+              <button id="fwHere">Use my location</button>
+              <select id="fwUnit"><option value="fahrenheit">°F</option><option value="celsius">°C</option></select></div>
+          </div>
+          <div class="lvForm" data-type="crypto">
+            <div class="row"><input id="fcCoin" placeholder="Coin, e.g. BTC, ETH, SOL" style="flex:1;min-width:120px">
+              <select id="fcCur"><option>usd</option><option>eur</option><option>gbp</option><option>cad</option></select></div>
+          </div>
+          <div class="lvForm" data-type="sports">
+            <div class="row"><select id="fsLeague">
+              <option value="football/nfl">NFL</option><option value="basketball/nba">NBA</option><option value="baseball/mlb">MLB</option>
+              <option value="hockey/nhl">NHL</option><option value="football/college-football">College football</option>
+              <option value="basketball/wnba">WNBA</option><option value="soccer/usa.1">MLS</option><option value="soccer/eng.1">Premier League</option>
+            </select><input id="fsTeam" placeholder="Team abbreviation, e.g. NYJ" maxlength="5" style="flex:1;min-width:100px;text-transform:uppercase"></div>
+          </div>
+          <div class="lvForm" data-type="countdown">
+            <div class="row"><input id="fdLabel" placeholder="Label, e.g. XMAS" maxlength="12" style="flex:1;min-width:100px">
+              <input id="fdWhen" type="datetime-local"></div>
+          </div>
+          <div class="lvForm" data-type="clock"><p class="note">Shows the time using the face you designed in Custom clock.</p></div>
+          <div class="lvForm" data-type="message">
+            <div class="row"><input id="fmText" placeholder="Short message" maxlength="24" style="flex:1;min-width:120px"><input type="color" id="fmColor" value="#ff5a3c"></div>
+          </div>
+          <div class="lvForm" data-type="json">
+            <div class="row"><input id="fjUrl" placeholder="https://… (must allow browser access)" style="flex:1;min-width:160px"></div>
+            <div class="row"><input id="fjPath" placeholder="Path, e.g. data.price" style="flex:1;min-width:110px">
+              <input id="fjLabel" placeholder="Label" maxlength="10" style="width:90px"><input id="fjSuffix" placeholder="Suffix" maxlength="4" style="width:70px"></div>
+          </div>
+          <div class="row"><button id="lvAdd">Add card</button></div>
+          <ol id="lvCards" class="txlist"></ol>
+          <div class="row"><label>Show each card for</label>
+            <select id="lvHold"><option value="5">5 s</option><option value="8" selected>8 s</option><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option></select></div>
+          <p class="note">Weather from Open-Meteo, prices from CoinGecko, scores from ESPN. Data refreshes on its own (scores every minute, prices every 2 minutes, weather every 15).</p>
+        </div>
+        <!-- camera / screen -->
+        <div class="lvPane" data-src="camera" hidden>
+          <div class="row"><select id="lvCam"><option value="environment">Back camera</option><option value="user">Front camera</option></select>
+            <span class="chk"><input type="checkbox" id="lvMirror"> Mirror</span></div>
+        </div>
+        <div class="lvPane" data-src="screen" hidden>
+          <p class="note" id="lvScreenNote">Shares a window, tab or your whole screen. On Android, Chrome can't share the screen, so use this from a computer.</p>
+        </div>
+        <div class="lvPane" data-src="camera screen" hidden>
+          <div class="cc-grid">
+            <label>Fit<select id="lvFit"><option value="cover">Fill (crop)</option><option value="contain">Fit (bars)</option><option value="stretch">Stretch</option></select></label>
+            <label>Max frame rate<select id="lvFps"><option value="1">1 fps</option><option value="3">3 fps</option><option value="6" selected>6 fps</option><option value="12">12 fps</option><option value="30">As fast as possible</option></select></label>
+            <label>Brightness<input type="range" id="lvBri" min="40" max="200" value="100"></label>
+            <label>Contrast<input type="range" id="lvCon" min="50" max="250" value="130"></label>
+            <label>Colour boost<input type="range" id="lvSat" min="0" max="300" value="150"></label>
+            <label>Colours<select id="lvPost"><option value="0">Full colour</option><option value="6">Poster (fewer colours)</option><option value="3">Comic</option><option value="2">Pop art</option></select></label>
+          </div>
+        </div>
+        <details style="margin-top:10px">
+          <summary>How frames are sent</summary>
+          <div class="row"><select id="lvMethod">
+            <option value="auto">Automatic (recommended)</option>
+            <option value="pixels">Changed pixels only</option>
+            <option value="image">Whole image each frame</option>
+            <option value="direct">Direct frames (experimental, fastest)</option>
+          </select></div>
+          <p class="note">Automatic sends only the pixels that changed when that's smaller, otherwise the whole picture. "Direct frames" uses a raw camera-frame command found in the app's code that the app itself never uses; try it if you want more speed.</p>
+        </details>
+      </div>
+    </div>
   </section>
 
   <section class="wide" id="textSec">
@@ -614,7 +709,11 @@ const FONTS = (() => {
     Q:"010 101 101 110 011",R:"110 101 110 101 101",S:"011 100 010 001 110",T:"111 010 010 010 010",
     U:"101 101 101 101 111",V:"101 101 101 101 010",W:"101 101 111 111 101",X:"101 101 010 101 101",
     Y:"101 101 010 010 010",Z:"111 001 010 100 111",
-    ":":"0 1 0 1 0","/":"001 001 010 100 100","-":"000 000 111 000 000"," ":"00 00 00 00 00"
+    ":":"0 1 0 1 0","/":"001 001 010 100 100","-":"000 000 111 000 000"," ":"00 00 00 00 00",
+    ".":"0 0 0 0 1",",":"00 00 00 01 10","+":"000 010 111 010 000","%":"101 001 010 100 101","$":"011 110 010 011 110",
+    "°":"11 11 00 00 00","!":"1 1 1 0 1","?":"110 001 010 000 010","'":"1 1 0 0 0","#":"101 111 101 111 101",
+    "(":"01 10 10 10 01",")":"10 01 01 01 10","@":"010 101 111 100 011","&":"010 101 010 101 011",
+    "=":"000 111 000 111 000","<":"001 010 100 010 001",">":"100 010 001 010 100","_":"000 000 000 000 111"
   };
   const bold = {
     "0":"01110 10001 10011 10101 11001 10001 01110","1":"00100 01100 00100 00100 00100 00100 01110",
@@ -827,14 +926,15 @@ function renderClock(d = new Date(), minuteOnly = false) {
 }
 
 /* ---- LED-style preview ---- */
-function drawPreview(buf) {
-  const cv = $("#ccLed"), p = Math.max(4, Math.floor(320 / Math.max(CC.W, CC.H)));
-  if (cv.width !== CC.W * p || cv.height !== CC.H * p) { cv.width = CC.W * p; cv.height = CC.H * p; }
+function drawPreview(buf) { ledDraw($("#ccLed"), buf, CC.W, CC.H); }
+function ledDraw(cv, buf, W, H) {
+  const p = Math.max(4, Math.floor(320 / Math.max(W, H)));
+  if (cv.width !== W * p || cv.height !== H * p) { cv.width = W * p; cv.height = H * p; }
   const ctx = cv.getContext("2d");
   ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, cv.width, cv.height);
   const r = p * 0.42;
-  for (let y = 0; y < CC.H; y++) for (let x = 0; x < CC.W; x++) {
-    const i = (y * CC.W + x) * 3, R = buf[i], G = buf[i + 1], B = buf[i + 2];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 3, R = buf[i], G = buf[i + 1], B = buf[i + 2];
     ctx.fillStyle = R | G | B ? `rgb(${R},${G},${B})` : "#141414";
     ctx.beginPath(); ctx.arc(x * p + p / 2, y * p + p / 2, r, 0, 7); ctx.fill();
   }
@@ -855,22 +955,30 @@ async function pushFrame(buf, full) {
     CC.last = buf.slice();
   } finally { quietRx = false; }
 }
-async function sendPixelDiff(buf, prev) {
+function diffGroups(buf, prev, W, H) {
   const groups = new Map();
-  for (let y = 0; y < CC.H; y++) for (let x = 0; x < CC.W; x++) {
-    const i = (y * CC.W + x) * 3, r = buf[i], g = buf[i + 1], b = buf[i + 2];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 3, r = buf[i], g = buf[i + 1], b = buf[i + 2];
     if (prev ? (prev[i] === r && prev[i + 1] === g && prev[i + 2] === b) : !(r | g | b)) continue;
     const k = (r << 16) | (g << 8) | b;
     if (!groups.has(k)) groups.set(k, []); groups.get(k).push([x, y]);
   }
+  return groups;
+}
+/* bytes a pixel-diff update would cost (header 8 per packet + 2 per point) */
+const diffCost = g => { let n = 0; for (const pts of g.values()) n += 8 * Math.ceil(pts.length / 100) + 2 * pts.length; return n; };
+async function sendGroups(groups) {
+  let n = 0;
   for (const [k, pts] of groups) {
     for (let i = 0; i < pts.length; i += 100) {
-      await send(pPixels(k >> 16, (k >> 8) & 255, k & 255, pts.slice(i, i + 100)), true);
+      const pk = pPixels(k >> 16, (k >> 8) & 255, k & 255, pts.slice(i, i + 100)); n += pk.length;
+      await send(pk, true);
       await new Promise(r => setTimeout(r, 6));
     }
   }
+  return n;
 }
-
+async function sendPixelDiff(buf, prev, W = CC.W, H = CC.H) { return sendGroups(diffGroups(buf, prev, W, H)); }
 /* ---- run loop ---- */
 function frameKey(d, every) {
   const s = d.getSeconds();
@@ -891,6 +999,7 @@ async function wakeOn() {
 document.addEventListener("visibilitychange", () => { if (CC.running && document.visibilityState === "visible") { wakeOn(); tick(true); } });
 async function clockStart() {
   if (!wch) { log("connect to the display first", "err"); return; }
+  if (typeof liveStop === "function") liveStop();
   CC.running = true; CC.last = null; CC.lastKey = "";
   $("#ccRun").textContent = "Stop"; $("#ccRun").classList.remove("primary");
   $("#ccState").textContent = "Running on the display. Keep this page open.";
@@ -1230,6 +1339,387 @@ function ccGifHint() {
 }
 $$("#customClock select, #customClock input").forEach(el => el.addEventListener("input", ccGifHint));
 ccGifHint();
+
+/* ================= live display ================= */
+const LV = { src: "info", running: false, stream: null, last: null, mode: null, fails: 0,
+  cards: [], idx: 0, shownAt: 0, data: {}, statT: 0, statB: 0, statF: 0, method: "" };
+const lvVideo = document.createElement("video"); lvVideo.playsInline = true; lvVideo.muted = true;
+const lvCanvas = document.createElement("canvas");
+
+/* ---- direct frame: SendCore TYPE_CAMERA (0): [len16][00 00][option][total32] + RGB, no CRC, no ack ---- */
+function pDirect(buf) {
+  const n = buf.length + 9, out = new Uint8Array(n), dv = new DataView(out.buffer);
+  dv.setUint16(0, n, true); out[2] = 0; out[3] = 0; out[4] = 0; dv.setUint32(5, buf.length, true); out.set(buf, 9);
+  return out;
+}
+
+/* ---- send one frame using the chosen method; returns bytes sent ---- */
+async function lvSend(buf, W, H) {
+  const m = $("#lvMethod").value, full = buf.length + 16 + 300;      /* +300 ≈ cost of the ack round trip */
+  if (m === "direct") { LV.method = "direct"; await send(pDirect(buf), true); await new Promise(r => setTimeout(r, 15)); LV.last = buf; return buf.length + 9; }
+  const canDiff = LV.last && LV.last.length === buf.length && LV.mode;
+  const groups = diffGroups(buf, canDiff ? LV.last : null, W, H);
+  if (canDiff && !groups.size) return 0;                               /* nothing changed */
+  const usePixels = m === "pixels" || (m === "auto" && (diffCost(groups) < full || LV.fails >= 99));
+  if (usePixels) {
+    if (!canDiff) { await send(pDiy(1), true); LV.mode = "diy"; }       /* enter drawing mode, clear */
+    else if (LV.mode !== "diy") { await send(pDiy(3), true); LV.mode = "diy"; }   /* re-enter, keep picture */
+    LV.method = "pixels"; const n = await sendGroups(groups); LV.last = buf; return n;
+  }
+  if (!LV.mode) await send(pDiy(1), true);
+  LV.method = "image";
+  const r = await upload(2, buf, null, true, 13);
+  if (r !== "done") { LV.fails++; if (LV.fails >= 3 && m === "auto") { LV.fails = 99; log("image frames failing; switching to changed pixels", "err"); } }
+  else if (LV.fails < 99) LV.fails = 0;
+  LV.mode = "image"; LV.last = buf; return buf.length + 16;
+}
+
+/* ---- camera / screen ---- */
+async function lvOpen() {
+  if (LV.src === "camera") {
+    LV.stream = await navigator.mediaDevices.getUserMedia({ audio: false,
+      video: { facingMode: $("#lvCam").value, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } } });
+  } else {
+    LV.stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+  }
+  LV.stream.getVideoTracks()[0].addEventListener("ended", () => liveStop());
+  lvVideo.srcObject = LV.stream; await lvVideo.play();
+}
+function lvClose() { LV.stream?.getTracks().forEach(t => t.stop()); LV.stream = null; lvVideo.srcObject = null; }
+function lvGrab() {
+  const { w, h } = panel(); lvCanvas.width = w; lvCanvas.height = h;
+  const ctx = lvCanvas.getContext("2d", { willReadFrequently: true });
+  ctx.filter = "none"; ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+  const vw = lvVideo.videoWidth, vh = lvVideo.videoHeight;
+  if (vw && vh) {
+    ctx.filter = `brightness(${$("#lvBri").value}%) contrast(${$("#lvCon").value}%) saturate(${$("#lvSat").value}%)`;
+    ctx.imageSmoothingQuality = "high";
+    const fit = $("#lvFit").value; let dx = 0, dy = 0, dw = w, dh = h;
+    if (fit !== "stretch") {
+      const s = fit === "cover" ? Math.max(w / vw, h / vh) : Math.min(w / vw, h / vh);
+      dw = vw * s; dh = vh * s; dx = (w - dw) / 2; dy = (h - dh) / 2;
+    }
+    ctx.save();
+    if (LV.src === "camera" && $("#lvMirror").checked) { ctx.translate(w, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(lvVideo, dx, dy, dw, dh); ctx.restore();
+  }
+  const d = ctx.getImageData(0, 0, w, h).data, out = new Uint8Array(w * h * 3), L = +$("#lvPost").value;
+  for (let i = 0, j = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) {
+    let v = d[i + k];
+    if (L) v = Math.round(Math.round(v / 255 * (L - 1)) * 255 / (L - 1));
+    out[j++] = v & 0xf8;
+  }
+  return { buf: out, w, h };
+}
+
+/* ---- info cards: pixel icons (10×10, scaled) ---- */
+function iconMask(kind) {
+  const g = Array.from({ length: 10 }, () => Array(10).fill(null)), Y = [255, 200, 0], O = [255, 120, 0],
+    W = [235, 235, 245], G = [150, 155, 170], D = [90, 95, 110], B = [40, 140, 255];
+  const set = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && y >= 0 && x < 10 && y < 10) g[y][x] = c; };
+  const disc = (cx, cy, r, c) => { for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) set(x, y, c); };
+  const sun = (cx, cy, r, rays) => {
+    disc(cx, cy, r, Y);
+    if (rays) for (let a = 0; a < 8; a++) set(cx + Math.cos(a * Math.PI / 4) * (r + 2), cy + Math.sin(a * Math.PI / 4) * (r + 2), O);
+  };
+  const cloud = (dy, c) => { disc(3, 5.5 + dy, 2, c); disc(5.5, 4.3 + dy, 2.5, c); disc(7.8, 5.8 + dy, 1.7, c); for (let x = 1; x <= 9; x++) for (let y = 6 + dy; y <= 7 + dy; y++) set(x, y, c); };
+  switch (kind) {
+    case "clear": sun(4.5, 4.5, 2.2, true); break;
+    case "night": disc(4.5, 4.5, 3.2, [230, 230, 170]); disc(6.2, 3.4, 2.6, null); break;
+    case "partly": sun(3, 3, 2, false); cloud(1, W); break;
+    case "cloudy": cloud(0, G); break;
+    case "fog": for (const y of [3, 5, 7]) for (let x = 1; x < 9; x++) set(x + (y === 5 ? 1 : 0), y, G); break;
+    case "rain": cloud(-2, G); for (const [x, y] of [[2, 7], [5, 8], [8, 7], [3, 9], [6, 9]]) set(x, y, B); break;
+    case "snow": cloud(-2, W); for (const [x, y] of [[2, 7], [5, 8], [8, 7], [3, 9], [7, 9]]) set(x, y, W); break;
+    case "storm": cloud(-2, D); for (const [x, y] of [[5, 6], [4, 7], [5, 7], [6, 7], [5, 8], [4, 9]]) set(x, y, Y); break;
+  }
+  return g;
+}
+function drawIcon(kind, x0, y0, s) {
+  iconMask(kind).forEach((row, y) => row.forEach((c, x) => {
+    if (c) for (let a = 0; a < s; a++) for (let b = 0; b < s; b++) px(x0 + x * s + b, y0 + y * s + a, c);
+  }));
+}
+const wmoIcon = (c, day) => c === 0 ? (day ? "clear" : "night") : c <= 2 ? "partly" : c === 3 ? "cloudy" : c <= 48 ? "fog"
+  : c <= 67 || (c >= 80 && c <= 82) ? "rain" : c <= 77 || c === 85 || c === 86 ? "snow" : "storm";
+
+/* ---- info cards: what each card shows ---- */
+const GREEN = [40, 220, 90], RED = [255, 60, 50], DIM = [150, 150, 160];
+function fmtPrice(v) {
+  if (v >= 100000) return (v / 1000).toFixed(0) + "K";
+  if (v >= 10000) return (v / 1000).toFixed(1) + "K";
+  if (v >= 100) return Math.round(v).toString();
+  if (v >= 1) return v.toFixed(2);
+  return v.toPrecision(3).replace(/^0/, "");
+}
+function cardView(c) {
+  const d = LV.data[c.id], acc = rgbOf($("#ccAccent").value), main = rgbOf($("#ccColor").value);
+  if (["weather", "crypto", "sports", "json"].includes(c.kind) && !d) return { top: c.name, big: "...", bigCol: DIM };
+  if (d && !d.ok) return { top: c.name, big: "ERR", bigCol: RED, bottom: d.err, botCol: DIM };
+  switch (c.kind) {
+    case "weather": return { icon: wmoIcon(d.code, d.day), top: c.name, topCol: DIM, big: `${Math.round(d.temp)}°`, bigCol: main,
+      bottom: `${Math.round(d.hi)}/${Math.round(d.lo)}`, botCol: acc };
+    case "crypto": return { top: c.name, topCol: acc, big: (c.cur === "usd" ? "$" : "") + fmtPrice(d.price), bigCol: main,
+      bottom: (d.chg >= 0 ? "+" : "") + d.chg.toFixed(1) + "%", botCol: d.chg >= 0 ? GREEN : RED };
+    case "sports": {
+      if (!d.game) return { top: c.name, topCol: acc, big: "--", bigCol: DIM, bottom: "NO GAME", botCol: DIM };
+      const gm = d.game;
+      if (gm.state === "pre") return { top: `${gm.away}@${gm.home}`, topCol: acc, big: gm.time, bigCol: main, bottom: gm.day, botCol: DIM };
+      return { top: `${gm.away}@${gm.home}`, topCol: acc, big: `${gm.as}-${gm.hs}`, bigCol: gm.state === "in" ? main : DIM,
+        bottom: gm.detail, botCol: gm.state === "in" ? GREEN : DIM };
+    }
+    case "countdown": {
+      const ms = new Date(c.when).getTime() - Date.now(); if (isNaN(ms)) return { top: c.name, big: "?" };
+      if (ms <= 0) return { top: c.name, topCol: acc, big: "NOW!", bigCol: main };
+      const dd = Math.floor(ms / 864e5), hh = Math.floor(ms / 36e5) % 24, mm = Math.floor(ms / 6e4) % 60, ss = Math.floor(ms / 1e3) % 60;
+      return dd >= 1 ? { top: c.name, topCol: acc, big: `${dd}D`, bigCol: main, bottom: `${hh}H ${mm}M`, botCol: DIM }
+        : { top: c.name, topCol: acc, big: `${hh}:${String(mm).padStart(2, "0")}`, bigCol: main, bottom: `${ss}S`, botCol: DIM };
+    }
+    case "message": return { big: c.text, bigCol: rgbOf(c.color) };
+    case "json": return { top: c.name, topCol: acc, big: String(d.value) + (c.suffix || ""), bigCol: main };
+  }
+  return { big: "?" };
+}
+/* fit a card into the panel: optional icon, small top line, big value, small bottom line */
+function renderCard(c) {
+  if (c.kind === "clock") return renderClock(new Date()).slice();
+  const { w, h } = panel(); CC.W = w; CC.H = h; const buf = CC.buf = new Uint8Array(w * h * 3);
+  const v = cardView(c), up = s => String(s ?? "").toUpperCase();
+  let ax = 0, aw = w, ay = 0, ah = h;
+  if (v.icon) {
+    const s = Math.max(1, Math.floor(Math.min(h - 2, w * 0.42) / 10)), sz = s * 10;
+    if ((w >= h * 1.5 || h < 20) && w - sz - 2 >= 14) { drawIcon(v.icon, 1, Math.floor((h - sz) / 2), s); ax = sz + 2; aw = w - ax; }
+    else if (h - sz - 2 >= 12) { drawIcon(v.icon, Math.floor((w - sz) / 2), 1, s); ay = sz + 2; ah = h - ay; }
+  }
+  const fitStr = (str, font, s) => { str = up(str); while (str && textSize(str, font, s).w > aw) str = str.slice(0, -1); return str.trim(); };
+  const smallS = h >= 48 && aw >= 40 ? 2 : 1, gap = h >= 24 ? 2 : 1;
+  let rows = [];
+  if (v.top) rows.push({ str: fitStr(v.top, "thin", smallS), font: "thin", s: smallS, col: v.topCol || DIM });
+  const bigRow = { str: up(v.big), font: "bold", s: 1, col: v.bigCol || [255, 255, 255], big: true };
+  rows.push(bigRow);
+  if (v.bottom) rows.push({ str: fitStr(v.bottom, "thin", smallS), font: "thin", s: smallS, col: v.botCol || DIM });
+  rows = rows.filter(r => r.str);
+  const smallH = () => rows.filter(r => !r.big).reduce((a, r) => a + textSize(r.str, r.font, r.s).h + gap, 0);
+  /* big text: bold if it fits, else the narrow font; drop the bottom line, then the top line, if there's no room */
+  for (;;) {
+    const room = ah - smallH();
+    bigRow.font = textSize(bigRow.str, "bold").w > aw || textSize(bigRow.str, "bold").h > room ? "thin" : "bold";
+    if (textSize(bigRow.str, bigRow.font).h <= room || rows.length === 1) break;
+    const drop = rows.length === 3 ? rows[2] : rows.find(r => !r.big);
+    rows = rows.filter(r => r !== drop);
+  }
+  if (textSize(bigRow.str, bigRow.font).w > aw && bigRow.str.startsWith("$")) bigRow.str = bigRow.str.slice(1);
+  if (textSize(bigRow.str, bigRow.font).w > aw) bigRow.str = fitStr(bigRow.str, bigRow.font, 1);
+  bigRow.s = fitScale(bigRow.str || " ", bigRow.font, aw - (aw > 16 ? 2 : 0), ah - smallH());
+  const total = rows.reduce((a, r) => a + textSize(r.str, r.font, r.s).h, 0) + gap * (rows.length - 1);
+  let y = ay + Math.max(0, Math.floor((ah - total) / 2));
+  for (const r of rows) {
+    const tw = textSize(r.str, r.font, r.s).w;
+    text(r.str, r.font, ax + Math.max(0, Math.floor((aw - tw) / 2)), y, r.s, r.col);
+    y += textSize(r.str, r.font, r.s).h + gap;
+  }
+  return buf;
+}
+
+/* ---- info cards: data ---- */
+const COINS = { BTC: "bitcoin", ETH: "ethereum", SOL: "solana", DOGE: "dogecoin", XRP: "ripple", ADA: "cardano", LTC: "litecoin",
+  BNB: "binancecoin", AVAX: "avalanche-2", DOT: "polkadot", SHIB: "shiba-inu", LINK: "chainlink", TRX: "tron", TON: "the-open-network", PEPE: "pepe", XLM: "stellar" };
+const REFRESH = { weather: 15 * 60e3, crypto: 2 * 60e3, sports: 60e3, json: 5 * 60e3 };
+async function getJSON(url) {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+async function fetchCard(c) {
+  try {
+    let d;
+    if (c.kind === "weather") {
+      const j = await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}` +
+        `&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&temperature_unit=${c.unit}&timezone=auto&forecast_days=1`);
+      d = { temp: j.current.temperature_2m, code: j.current.weather_code, day: !!j.current.is_day, hi: j.daily.temperature_2m_max[0], lo: j.daily.temperature_2m_min[0] };
+    } else if (c.kind === "crypto") {
+      const j = await getJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(c.coin)}&vs_currencies=${c.cur}&include_24hr_change=true`);
+      const q = j[c.coin]; if (!q) throw new Error("UNKNOWN COIN");
+      d = { price: q[c.cur], chg: q[c.cur + "_24h_change"] || 0 };
+    } else if (c.kind === "sports") {
+      const j = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/${c.league}/scoreboard`);
+      const ev = (j.events || []).find(e => e.competitions?.[0]?.competitors?.some(t => t.team?.abbreviation?.toUpperCase() === c.team));
+      let game = null;
+      if (ev) {
+        const cs = ev.competitions[0].competitors, home = cs.find(t => t.homeAway === "home"), away = cs.find(t => t.homeAway === "away");
+        const st = ev.status.type, when = new Date(ev.date);
+        game = { state: st.state, detail: (st.shortDetail || "").replace(/\s*-\s*/, " "), home: home.team.abbreviation, away: away.team.abbreviation,
+          hs: home.score ?? "0", as: away.score ?? "0",
+          time: when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).replace(/\s?[AP]M/i, ""),
+          day: DAY[when.getDay()] + " " + when.toLocaleTimeString([], { hour: "numeric" }).replace(/\s/, "") };
+        if (st.state === "post") game.detail = "FINAL";
+      }
+      d = { game };
+    } else if (c.kind === "json") {
+      const j = await getJSON(c.url);
+      const val = c.path.split(".").filter(Boolean).reduce((o, k) => o?.[k], j);
+      if (val === undefined) throw new Error("PATH?");
+      d = { value: typeof val === "number" ? (Math.abs(val) >= 1000 ? fmtPrice(val) : +val.toFixed(2)) : String(val).slice(0, 16) };
+    } else return;
+    LV.data[c.id] = { ok: true, t: Date.now(), ...d };
+  } catch (e) {
+    const err = /fetch|network|cors/i.test(e.message) ? "BLOCKED" : String(e.message).toUpperCase().slice(0, 12);
+    LV.data[c.id] = { ok: false, t: Date.now(), err };
+    log(`${c.kind} "${c.name}": ${e.message}${err === "BLOCKED" ? " (the site may not allow browser access)" : ""}`, "err");
+  }
+}
+let lvFetching = false;
+async function refreshDue(force = false) {
+  if (lvFetching) return; lvFetching = true;
+  try {
+    for (const c of LV.cards) {
+      const d = LV.data[c.id], every = REFRESH[c.kind];
+      if (every && (force || !d || Date.now() - d.t > (d.ok ? every : 60e3))) await fetchCard(c);
+    }
+  } finally { lvFetching = false; }
+}
+
+/* ---- card list UI ---- */
+const lvLoad = () => { try { return JSON.parse(localStorage.getItem("idm-lv-cards") || "null"); } catch { return null; } };
+function lvSave() { try { localStorage.setItem("idm-lv-cards", JSON.stringify(LV.cards)); } catch {} }
+LV.cards = lvLoad() || [{ id: "c1", kind: "clock", name: "CLOCK" }];
+const KIND_LABEL = { weather: "Weather", crypto: "Crypto", sports: "Score", countdown: "Countdown", clock: "Clock", message: "Message", json: "Data" };
+function lvList() {
+  const ol = $("#lvCards"); ol.innerHTML = "";
+  if (!LV.cards.length) { ol.innerHTML = '<li class="empty">No cards yet. Pick a type above and press Add card.</li>'; return; }
+  LV.cards.forEach((c, i) => {
+    const li = document.createElement("li");
+    const t = document.createElement("span"); t.className = "t"; t.textContent = c.name || c.text || KIND_LABEL[c.kind];
+    const m = document.createElement("span"); m.className = "m"; m.textContent = KIND_LABEL[c.kind];
+    const show = document.createElement("button"); show.textContent = "Show"; show.onclick = () => { LV.idx = i; LV.shownAt = Date.now(); };
+    const upb = document.createElement("button"); upb.textContent = "↑"; upb.title = "Move up"; upb.disabled = i === 0;
+    upb.onclick = () => { [LV.cards[i - 1], LV.cards[i]] = [LV.cards[i], LV.cards[i - 1]]; lvSave(); lvList(); };
+    const rm = document.createElement("button"); rm.textContent = "✕"; rm.title = "Remove";
+    rm.onclick = () => { LV.cards.splice(i, 1); lvSave(); lvList(); LV.idx = 0; };
+    li.append(t, m, show, upb, rm); ol.appendChild(li);
+  });
+}
+function lvFormVis() { const k = $("#lvType").value; $$(".lvForm").forEach(f => f.hidden = f.dataset.type !== k); }
+$("#lvType").onchange = lvFormVis;
+let hereLoc = null;
+$("#fwHere").onclick = () => {
+  if (!navigator.geolocation) return log("location isn't available in this browser", "err");
+  navigator.geolocation.getCurrentPosition(async p => {
+    hereLoc = { lat: +p.coords.latitude.toFixed(3), lon: +p.coords.longitude.toFixed(3), name: "HERE" };
+    try {
+      const j = await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${hereLoc.lat}&longitude=${hereLoc.lon}&localityLanguage=en`);
+      hereLoc.name = (j.city || j.locality || "HERE").toUpperCase();
+    } catch {}
+    $("#fwCity").value = ""; $("#fwCity").placeholder = "Using your location: " + hereLoc.name;
+  }, e => log("couldn't get your location: " + e.message, "err"), { timeout: 15000 });
+};
+$("#lvAdd").onclick = async () => {
+  const k = $("#lvType").value, c = { id: "c" + Date.now().toString(36), kind: k };
+  try {
+    if (k === "weather") {
+      const city = $("#fwCity").value.trim();
+      if (city) {
+        const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en`);
+        const r = j.results?.[0]; if (!r) return log(`couldn't find "${city}"`, "err");
+        Object.assign(c, { lat: r.latitude, lon: r.longitude, name: r.name.toUpperCase() });
+      } else if (hereLoc) Object.assign(c, hereLoc);
+      else return log('type a city or press "Use my location"', "err");
+      c.unit = $("#fwUnit").value;
+    } else if (k === "crypto") {
+      const s = $("#fcCoin").value.trim().toUpperCase(); if (!s) return $("#fcCoin").focus();
+      Object.assign(c, { coin: COINS[s] || s.toLowerCase(), name: s, cur: $("#fcCur").value });
+    } else if (k === "sports") {
+      const t = $("#fsTeam").value.trim().toUpperCase(); if (!t) return $("#fsTeam").focus();
+      Object.assign(c, { league: $("#fsLeague").value, team: t, name: t });
+    } else if (k === "countdown") {
+      if (!$("#fdWhen").value) return $("#fdWhen").focus();
+      Object.assign(c, { when: $("#fdWhen").value, name: ($("#fdLabel").value || "SOON").toUpperCase() });
+    } else if (k === "message") {
+      const t = $("#fmText").value.trim(); if (!t) return $("#fmText").focus();
+      Object.assign(c, { text: t, color: $("#fmColor").value, name: t });
+    } else if (k === "json") {
+      const u = $("#fjUrl").value.trim(); if (!/^https:\/\//.test(u)) return log("the data URL must start with https://", "err");
+      Object.assign(c, { url: u, path: $("#fjPath").value.trim(), name: ($("#fjLabel").value || "DATA").toUpperCase(), suffix: $("#fjSuffix").value });
+    } else c.name = "CLOCK";
+  } catch (e) { return log("couldn't add card: " + e.message, "err"); }
+  LV.cards.push(c); lvSave(); lvList(); LV.idx = LV.cards.length - 1; LV.shownAt = Date.now();
+  fetchCard(c);
+};
+
+/* ---- the loop ---- */
+function lvFrame() {
+  const { w, h } = panel();
+  if (LV.src === "info") {
+    if (!LV.cards.length) return { buf: new Uint8Array(w * h * 3), w, h };
+    if (Date.now() - LV.shownAt > +$("#lvHold").value * 1000) { LV.idx = (LV.idx + 1) % LV.cards.length; LV.shownAt = Date.now(); }
+    LV.idx %= LV.cards.length;
+    return { buf: renderCard(LV.cards[LV.idx]), w, h };
+  }
+  return lvGrab();
+}
+async function lvLoop() {
+  while (LV.running) {
+    const t0 = performance.now();
+    try {
+      const { buf, w, h } = lvFrame();
+      ledDraw($("#lvLed"), buf, w, h);
+      quietRx = true;
+      const n = await lvSend(buf, w, h);
+      if (n) { LV.statB += n; LV.statF++; }
+    } catch (e) { log("live frame failed: " + e.message, "err"); await new Promise(r => setTimeout(r, 1000)); }
+    finally { quietRx = false; }
+    if (performance.now() - LV.statT > 2000) {
+      const s = (performance.now() - LV.statT) / 1000;
+      $("#lvStat").textContent = LV.src === "info" ? `Live · ${LV.cards.length} card${LV.cards.length === 1 ? "" : "s"} · ${(LV.statB / 1024 / s).toFixed(1)} KB/s`
+        : `Live · ${(LV.statF / s).toFixed(1)} fps · ${(LV.statB / 1024 / s).toFixed(1)} KB/s · ${LV.method}`;
+      LV.statT = performance.now(); LV.statB = 0; LV.statF = 0;
+    }
+    const minGap = LV.src === "info" ? 500 : 1000 / +$("#lvFps").value;
+    await new Promise(r => setTimeout(r, Math.max(5, minGap - (performance.now() - t0))));
+  }
+}
+async function liveStart() {
+  if (!wch) return log("connect to the display first", "err");
+  if (CC.running) clockStop();
+  try { if (LV.src !== "info") await lvOpen(); }
+  catch (e) { return log((LV.src === "camera" ? "camera" : "screen sharing") + " didn't start: " + e.message, "err"); }
+  LV.running = true; LV.last = null; LV.mode = null; LV.fails = 0; LV.statT = performance.now(); LV.statB = LV.statF = 0;
+  $("#lvRun").textContent = "Stop live"; $("#lvRun").classList.remove("primary");
+  $("#lvStat").textContent = "Starting…";
+  await wakeOn(); refreshDue();
+  log(`live ${LV.src} started`, "rx");
+  lvLoop();
+}
+function liveStop() {
+  if (!LV.running) return;
+  LV.running = false; lvClose();
+  if (!CC.running) { try { CC.wake?.release(); } catch {} CC.wake = null; }
+  $("#lvRun").textContent = "Start live"; $("#lvRun").classList.add("primary");
+  $("#lvStat").textContent = "Stopped. The display keeps the last frame.";
+  log("live stopped");
+}
+$("#lvRun").onclick = () => LV.running ? liveStop() : liveStart();
+$$("#liveSec .tab").forEach(t => t.onclick = () => {
+  if (LV.running) liveStop();
+  LV.src = t.dataset.src;
+  $$("#liveSec .tab").forEach(b => b.classList.toggle("on", b === t));
+  $$("#liveSec .lvPane").forEach(p => p.hidden = !p.dataset.src.split(" ").includes(LV.src));
+  const noScreen = LV.src === "screen" && !navigator.mediaDevices?.getDisplayMedia;
+  $("#lvRun").disabled = noScreen || (LV.src === "camera" && !navigator.mediaDevices?.getUserMedia);
+  if (noScreen) $("#lvScreenNote").textContent = "This browser can't share its screen (Chrome on Android can't). Open this page on a computer to mirror a screen.";
+  $("#lvStat").textContent = LV.src === "info" ? "Preview only. Connect, then press Start live." : "Press Start live to begin.";
+  try { localStorage.setItem("idm-lv-src", LV.src); } catch {}
+});
+$("#lvCam").onchange = async () => { if (LV.running && LV.src === "camera") { lvClose(); try { await lvOpen(); } catch (e) { log(e.message, "err"); } } };
+document.addEventListener("visibilitychange", () => { if (LV.running && document.visibilityState === "visible") wakeOn(); });
+
+/* preview + data refresh while not streaming */
+setInterval(() => {
+  refreshDue();
+  if (!LV.running && LV.src === "info") { const { buf, w, h } = lvFrame(); ledDraw($("#lvLed"), buf, w, h); }
+}, 1000);
+lvList(); lvFormVis();
+try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data-src="${s}"]`)?.click(); } catch {}
 
 resizePad(); renderImg();
 log("ready. Press Connect and pick your IDM-… display");

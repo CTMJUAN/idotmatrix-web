@@ -39,6 +39,9 @@ Format: `[len_lo, len_hi, opcode, group, …args]`. The length counts the whole 
 ## Graffiti pixels (type `05 01`)
 `[len LE16] 05 01 moveType R G B x1 y1 x2 y2 …`. One colour per packet, any number of points (`SendCore.sendDiyImageData`).
 
+## Direct frame (type `00 00`, untested)
+`[len LE16] 00 00 00 [total LE32] R G B …` — `SendCore.payload(TYPE_CAMERA)`: a whole raw RGB frame in one packet, with no CRC and no 4 KB acks. The constant exists in the app, but this version never calls it, so firmware support is unconfirmed. The web page offers it as "Direct frames (experimental)" for live video.
+
 ## Image, GIF and text upload
 The payload is split into 4096-byte blocks. Each block gets a 16-byte header, with **all multi-byte fields little-endian** (`ImageAgreement`, `GifAgreement`, `TextAgreement`; the app writes `short2Bytes()[1]` before `[0]`):
 
