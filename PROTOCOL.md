@@ -162,7 +162,7 @@ None of these are needed to drive the display, so a custom controller can run fu
 
 | Service UUID | Device | Notes |
 |---|---|---|
-| `0000ae00-1111-0002-8000-00805f9b36fb` | "HBS613 LED" Bluetooth speaker | also has service `0xFF12`. The UUID doesn't encode the panel size, so the controller lets you set the size and LED type by hand. Its display is assumed to use the same `55 … 88` commands. |
+| `0000ae00-1111-0002-8000-00805f9b36fb` | "HBS613 LED" Bluetooth speaker | **24×24 full colour** (per its owner); also has service `0xFF12`. The UUID doesn't encode the panel, so the controller defaults to 24×24 RGB444 and the size and layout can be changed. Assumed to use the same `55 … 88` commands. |
 
 ### Framing
 Every command is `55 <cmd> … 88`.

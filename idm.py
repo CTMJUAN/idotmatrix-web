@@ -139,6 +139,8 @@ XB_MODELS = [
     ("0000ae00-1616-1111-8015-00805f9b36fb", 22, 16, 16, "rgb444", 220),
     ("0000ae00-1616-1111-8016-00805f9b36fb", 23, 16, 16, "rgb444", 220),
     ("0000ae00-3232-0000-8000-00805f9b34fb", 2, 32, 32, "split", 488),
+    # not in app 1.3.51; seen on the "HBS613 LED" speaker (24x24 full colour, per its owner)
+    ("0000ae00-1111-0002-8000-00805f9b36fb", 0, 24, 24, "rgb444", 220),
 ]
 XB_GAP = 0.05            # the app sleeps 50 ms between writes (BleClient.TIME)
 XB_DIRS = {"still": 0, "right": 1, "left": 2, "up": 3, "down": 4}
@@ -304,6 +306,10 @@ class Display:
                 svc = self.client.services.get_service(row[0])
                 if svc is not None:
                     self.family, self.xb = "xb", XBModel(*row)
+                    chars = {c.uuid.lower(): c for c in svc.characteristics}
+                    if self.xb.write not in chars:     # newer models: use whatever accepts writes
+                        w = next((u for u, c in chars.items() if "write-without-response" in c.properties or "write" in c.properties), None)
+                        if w: self.xb.write = w
                     print(f"XiaoBai badge: model {self.xb.model}, {self.xb.w}x{self.xb.h} {self.xb.fmt}")
                     break
             else:

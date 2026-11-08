@@ -109,7 +109,8 @@ body:not(.fam-xb) .xb-only{display:none!important}
     <option value="32x16">32×16</option><option value="48x16">48×16</option>
     <option value="64x16">64×16</option><option value="48x24">48×24</option>
     <optgroup label="XiaoBai badges"><option value="48x12">48×12</option><option value="32x12">32×12</option>
-    <option value="29x12">29×12</option><option value="24x12">24×12</option><option value="30x10">30×10</option></optgroup>
+    <option value="29x12">29×12</option><option value="24x12">24×12</option><option value="30x10">30×10</option>
+    <option value="24x24">24×24</option></optgroup>
   </select></label>
   <button id="connect" class="primary">Connect</button>
   <button id="connectAll" title="List every nearby Bluetooth device (use this for XiaoBai badges and speakers)">Show all devices</button>
@@ -130,7 +131,7 @@ body:not(.fam-xb) .xb-only{display:none!important}
     <div class="row xb-only xb-unlisted"><label>LED type</label><select id="xbFmt">
       <option value="mono">Single colour (1-bit)</option>
       <option value="rgb444">Full colour</option>
-      <option value="split">Full colour, 32×32 layout</option>
+      <option value="split">Full colour, alternate layout (top half, then bottom half)</option>
     </select></div>
   </section>
 
@@ -453,7 +454,10 @@ function panel() { const [w, h] = $("#size").value.split("x").map(Number); retur
 try { const s = localStorage.getItem("idm-size"); if (s) $("#size").value = s; } catch {}
 $("#size").onchange = () => {
   try { localStorage.setItem("idm-size", $("#size").value); } catch {}
-  if (typeof XBM !== "undefined" && XBM?.unlisted) { XBM = xbUnlisted(XBM.svc, XBM.label); applyFamily(); }
+  if (typeof XBM !== "undefined" && XBM?.unlisted) {
+    try { localStorage.setItem("idm-xbsize-" + XBM.svc, $("#size").value); } catch {}
+    XBM = xbUnlisted(XBM.svc, XBM.label); applyFamily();
+  }
   resizePad(); renderImg();
 };
 
@@ -503,7 +507,15 @@ async function connect(showAll = false) {
   if (!svc) {
     for (const [u, label] of XB_UNLISTED) {
       if (seen.length && !seen.includes(u)) continue;
-      try { svc = await server.getPrimaryService(u); XBM = xbUnlisted(u, label); FAM = "xb"; break; } catch {}
+      try {
+        svc = await server.getPrimaryService(u);
+        const def = XB_UNLISTED.find(x => x[0] === u);
+        let size = def[2], fmt = def[3];
+        try { size = localStorage.getItem("idm-xbsize-" + u) || size; fmt = localStorage.getItem("idm-xbfmt") || fmt; localStorage.setItem("idm-xbfmt", fmt); } catch {}
+        if (![...$("#size").options].some(o => o.value === size)) $("#size").add(new Option(size.replace("x", "×"), size));
+        $("#size").value = size;
+        XBM = xbUnlisted(u, label); FAM = "xb"; break;
+      } catch {}
     }
   }
   if (!svc) {
@@ -525,9 +537,9 @@ async function connect(showAll = false) {
   }
   chunk = isXB() ? XBM.mtu : 509;
   if (isXB() && XBM.unlisted) {
-    $("#xbFmt").value = XBM.fmt;
-    $("#xbInfo").textContent = `${XBM.label}: this model is newer than the XiaoBai app I decoded, so set its size in the Panel menu ` +
-      `and its LED type below, then try Solid colour → white. When the whole display lights up, the settings are right.`;
+    $("#xbFmt").value = XBM.fmt; $("#size").dispatchEvent(new Event("change"));
+    $("#xbInfo").textContent = `${XBM.label}: set to ${XBM.w}×${XBM.h} ${XBM.fmt === "mono" ? "single colour" : "full colour"}. ` +
+      `If a picture comes out scrambled, try the other colour layout below.`;
     log(`XiaoBai-family device (${XBM.svc}); using ${XBM.w}×${XBM.h} ${XBM.fmt}. Adjust Panel size and LED type if the picture is wrong`, "rx");
   } else if (isXB()) {
     const v = `${XBM.w}x${XBM.h}`;
@@ -631,12 +643,12 @@ function xbModel(svc, model, w, h, fmt, mtu) {
 /* XiaoBai-family devices seen in the wild that aren't in app 1.3.51: the UUID doesn't give the panel,
    so size comes from the Panel menu and pixel type from #xbFmt (both remembered) */
 const XB_UNLISTED = [
-  ["0000ae00-1111-0002-8000-00805f9b36fb", "HBS613 LED speaker"]
+  ["0000ae00-1111-0002-8000-00805f9b36fb", "HBS613 LED speaker", "24x24", "rgb444"]   /* size + type confirmed by owner */
 ];
 function xbUnlisted(svc, label) {
   const { w, h } = panel(); let fmt = "rgb444";
   try { fmt = localStorage.getItem("idm-xbfmt") || fmt; } catch {}
-  const m = xbModel(svc, 0, w, h, fmt === "split" && (w !== 32 || h !== 32) ? "rgb444" : fmt, 220);
+  const m = xbModel(svc, 0, w, h, fmt === "split" && h % 2 ? "rgb444" : fmt, 220);
   m.label = label; m.unlisted = true; return m;
 }
 const XB_SERVICES = [...XB_MODELS.map(m => m.svc), ...XB_UNLISTED.map(u => u[0])];
