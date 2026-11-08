@@ -16,7 +16,7 @@ It supports two device families and detects which one you connect:
 | Scrolling text | ✓ (effects, saved list) | ✓ (still / left / right / up / down) |
 | GIF / animation | ✓ (as-is) | ✓ (auto-resized, up to 24 frames; not 32×32 or 10×30) |
 | Custom clock, live info cards, camera / screen mirroring | ✓ | ✓ |
-| Music visualizer (microphone) | ✓ (as pictures) | ✓ (the badge's own bar mode) |
+| Music visualizer (microphone) | ✓ (as pictures) | ✓ (the badge's own bar mode; 11 bars on the 11×11 speakers) |
 | Built-in clock faces, countdown / stopwatch / score | ✓ | – |
 | Clock that runs without the phone | ✓ | – |
 

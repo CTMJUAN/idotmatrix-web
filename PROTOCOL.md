@@ -174,6 +174,7 @@ Same `55 … 88` commands, but every `B1` packet carries exactly one 11×11 fram
 | Animation | `55 B1 00 <frame#> <242> <speed> 88` per frame, then `55 B6 02 00 00 00 00 88`. `speed` = the material file's per-frame byte − 2 (5 if that is < 1) | `getGifData11x11` |
 | Scrolling text | strip encoded column-major, zero-padded to whole 11-column frames; `55 B1 00 <i> <242> 00 88` per frame, then `55 B6 03 <dir> <speed> <columns LE16> 88`. Direction 0 (still) sends the first frame as a still image instead. The app defaults to dir 2 (left), speed 5. | `getScrollData` (step 1; 16×16 uses step 2, 12×32 step 3) |
 | Brightness | `55 B8 <0-5> 05 00 00 88` | unchanged |
+| Music bars | first upload a colour "background" frame (`55 B1 00 00 <242> 00 88`, **no** `B6` show); then repeat `55 B7 <11 heights 0-11> <style> 88` about every 100 ms. The speaker lights each column up to its height using the background's colours. The app's backgrounds are `music_back_11x11_1..4` (vertical rainbow, cyan, white, horizontal rainbow). | `q.C` / `q.D` / `q.o` (7 bands interpolated to 11) |
 
 ### Framing
 Every command is `55 <cmd> … 88`.
