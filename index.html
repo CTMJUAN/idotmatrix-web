@@ -1347,7 +1347,8 @@ async function clockStart() {
   CC.running = true; CC.last = null; CC.lastKey = "";
   $("#ccRun").textContent = "Stop"; $("#ccRun").classList.remove("primary");
   $("#ccState").textContent = "Running on the display. Keep this page open.";
-  await send(pSyncTime());
+  if (!isXB()) await send(pSyncTime());              /* iDotMatrix only: XiaoBai devices don't understand it */
+  else if (XBM.clockModel) await send(xbTime());
   await wakeOn();
   log("custom clock started", "rx");
   tick(true);
@@ -1674,7 +1675,7 @@ $("#ccGif").onclick = async () => {
       const gif = buildClockGif(planned, minutes, diff);
       $("#ccGifInfo").textContent = `Clock GIF: ${minutes} frames, ${(gif.length / 1024).toFixed(1)} KB. Sending…`;
       btn.textContent = "Sending…";
-      await send(pSyncTime(), true);
+      if (!isXB()) await send(pSyncTime(), true);
       const t0 = Date.now(), r = await upload(1, gif, $("#ccGifBar"), true, 13);
       const t1 = Date.now();
       if (r === "nospace") { $("#ccGifInfo").textContent = `Too big for the display (${(gif.length / 1024).toFixed(0)} KB). Try a shorter length or "Full frames" off.`; return; }
@@ -2137,6 +2138,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
+log("Matrix Control version 2026-11-08.4");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
