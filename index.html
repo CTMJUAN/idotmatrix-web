@@ -302,7 +302,7 @@ body:not(.fam-xb) .xb-only{display:none!important}
           <div class="cc-grid">
             <label>Sensitivity<input type="range" id="muGain" min="20" max="400" value="150"></label>
             <label>Bars<select id="muStyle"><option value="0">Solid</option><option value="1">Hollow</option></select></label>
-            <label class="xb11-only" hidden>Send as<select id="muSend"><option value="native">Speaker's own bars (smooth)</option><option value="image">Pictures (slower)</option></select></label>
+            <label class="xb11-only" hidden>Send as<select id="muSend"><option value="image">Pictures (reliable)</option><option value="native">Speaker's own bars (experimental)</option></select></label>
           </div>
         </div>
         <div class="lvPane" data-src="camera screen" hidden>
@@ -2221,7 +2221,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.8");
+log("Matrix Control version 2026-11-08.9");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
