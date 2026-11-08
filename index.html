@@ -7,6 +7,9 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Matrix">
 <meta name="theme-color" content="#0f0f11">
 <style>
 :root{
@@ -115,6 +118,7 @@ body:not(.fam-xb) .xb-only{display:none!important}
   </select></label>
   <button id="connect" class="primary">Connect</button>
   <button id="connectAll" title="List every nearby Bluetooth device (use this for XiaoBai badges and speakers)">Show all devices</button>
+  <button id="install" hidden title="Add Matrix Control to your home screen as an app">Install app</button>
 </header>
 
 <main>
@@ -2279,8 +2283,23 @@ lvList(); lvFormVis();
 try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data-src="${s}"]`)?.click(); } catch {}
 
 applyFamily();
+
+/* ---------- installable app (PWA) ---------- */
+if ("serviceWorker" in navigator && location.protocol !== "file:")
+  navigator.serviceWorker.register("sw.js").catch(e => log("offline support unavailable: " + e.message));
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; $("#install").hidden = false; });
+$("#install").onclick = async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  const { outcome } = await installEvt.userChoice;
+  log(outcome === "accepted" ? "installing Matrix Control as an app…" : "install cancelled");
+  installEvt = null; $("#install").hidden = true;
+};
+window.addEventListener("appinstalled", () => { $("#install").hidden = true; log("installed: open Matrix Control from your home screen", "rx"); });
+if (matchMedia("(display-mode: standalone)").matches) log("running as an installed app");
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.12");
+log("Matrix Control version 2026-11-08.13");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
