@@ -302,7 +302,7 @@ body:not(.fam-xb) .xb-only{display:none!important}
           <div class="cc-grid">
             <label>Sensitivity<input type="range" id="muGain" min="20" max="400" value="150"></label>
             <label>Bars<select id="muStyle"><option value="0">Solid</option><option value="1">Hollow</option></select></label>
-            <label class="xb11-only" hidden>Send as<select id="muSend"><option value="image">Pictures (reliable)</option><option value="native">Speaker's own bars (experimental)</option></select></label>
+            <label class="xb11-only" hidden>Send as<select id="muSend"><option value="image">Pictures (reliable)</option><option value="native7">Speaker's own bars, 7 (experimental)</option><option value="native">Speaker's own bars, 11 (experimental)</option></select></label>
           </div>
         </div>
         <div class="lvPane" data-src="camera screen" hidden>
@@ -718,7 +718,9 @@ function xbDataPackets(data, chunk, frameByte = () => 0) {
 async function xbSendAll(packets, quiet = true) { for (const p of packets) await send(p, quiet); }
 
 /* still image (GiFUtil.sendIMG* + Image32x32Display) */
-async function xbImage(buf, quiet = true) {
+/* show=false skips 55 B6 01: the frame still appears (the app sends gallery pictures that way), and on the
+   11×11 speakers re-sending B6 for every frame makes the screen blink, so live frames send it only once */
+async function xbImage(buf, quiet = true, show = true) {
   const m = XBM, data = xbEncode(buf, m.w, m.h);
   if (m.fmt === "rgb555") {                   /* 10×30 framing: 55 B1 01 01 L L <data> L L 00 88 + 55 B6 00 00 0A 1D 88 */
     const L1 = ((data.length % 256) + 6) & 255, L2 = ((data.length + 6) >> 8) & 255;
@@ -729,8 +731,8 @@ async function xbImage(buf, quiet = true) {
   }
   const pk = xbDataPackets(data, m.chunk);
   await xbSendAll(pk, quiet);
-  await send(new Uint8Array([0x55, 0xB6, 1, 0, 0, 0, 0, 0x88]), quiet);
-  return pk.reduce((a, p) => a + p.length, 8);
+  if (show) await send(new Uint8Array([0x55, 0xB6, 1, 0, 0, 0, 0, 0x88]), quiet);
+  return pk.reduce((a, p) => a + p.length, show ? 8 : 0);
 }
 /* animation: one frame per packet, per-frame speed byte, then 55 B6 02 … (GiFUtil.sendGIF*) */
 async function xbAnim(frames, speed = 5, quiet = true) {
@@ -1782,7 +1784,8 @@ async function lvSend(buf, W, H) {
     if (LV.src === "music" && XBM.idx) return xbMusic11(buf);
     if (LV.src === "music") { await send(xbBars(LV.levels, +$("#muStyle").value), true); return 11; }
     if (!LV.redraw && sameBuf(buf, LV.last)) return 0;
-    LV.method = "image"; const n = await xbImage(buf); LV.last = buf; LV.redraw = false; return n;
+    const show = !XBM.idx || LV.mode !== "img11";
+    LV.method = "image"; const n = await xbImage(buf, true, show); LV.last = buf; LV.redraw = false; LV.mode = "img11"; return n;
   }
   let m = $("#lvMethod").value;
   if (m === "pixels" || LV.fails >= 99) m = "pixels";
@@ -1809,9 +1812,10 @@ async function lvSend(buf, W, H) {
 /* 11×11 speakers (app 1.4.02 q.C/q.D): upload a colour "background" frame without showing it,
    then 55 B7 <11 heights 0-11> <style> 88; the speaker lights each column up to its height in the background's colours */
 async function xbMusic11(buf) {
-  if ($("#muSend").value === "image") {
+  const how = $("#muSend").value;
+  if (how === "image") {
     if (sameBuf(buf, LV.last)) return 0;
-    const n = await xbImage(buf); LV.last = buf; return n;
+    const n = await xbImage(buf, true, LV.mode !== "img11"); LV.last = buf; LV.mode = "img11"; return n;
   }
   let n = 0;
   if (LV.redraw || LV.mode !== "bars11") {
@@ -1820,11 +1824,13 @@ async function xbMusic11(buf) {
     for (const p of xbDataPackets(xbEncode(bg, w, h), XBM.chunk)) { await send(p, true); n += p.length; }
     LV.mode = "bars11"; LV.redraw = false;
   }
-  const p = new Uint8Array(15); p[0] = 0x55; p[1] = 0xB7;
-  for (let i = 0; i < 11; i++) p[2 + i] = Math.max(0, Math.min(11, Math.round((LV.levels[i] || 0) * 11)));
-  p[13] = 0; p[14] = 0x88;
+  /* "native7" = the app's microphone screen (7 bands), "native" = its music player (7 bands spread to 11) */
+  const lv = LV.levels, src = how === "native7" ? [0, 2, 4, 5, 6, 8, 10].map(i => lv[i] || 0) : lv;
+  const p = new Uint8Array(src.length + 4); p[0] = 0x55; p[1] = 0xB7;
+  src.forEach((v, i) => p[2 + i] = Math.max(0, Math.min(11, Math.round(v * 11))));
+  p[p.length - 2] = 0; p[p.length - 1] = 0x88;
   await send(p, true);
-  return n + 15;
+  return n + p.length;
 }
 
 /* ---- camera / screen ---- */
@@ -2221,7 +2227,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.9");
+log("Matrix Control version 2026-11-08.10");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
