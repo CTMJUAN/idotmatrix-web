@@ -158,11 +158,22 @@ None of these are needed to drive the display, so a custom controller can run fu
 | `0000ae00-1616-1111-8016-00805f9b36fb` | 23 | 16×16 | RGB444 | "T2", notify `ae02` |
 | `0000ae00-3232-0000-8000-00805f9b34fb` | 2 | 32×32 | RGB444, split halves | 488-byte writes |
 
-**Seen in the wild, not in app 1.3.51:**
+**Added in app 1.4.02** (packet building moved into the native `libstrongled.so`, called through `com.xiaobai.led.lib.AppJni`):
 
-| Service UUID | Device | Notes |
+| Service UUID | Model | Panel | Pixels | Notes |
+|---|---|---|---|---|
+| `0000ae00-1111-0002-8000-00805f9b36fb` | 41 | 11×11 | RGB444 | "LED_11X11"; the app's "跑马灯音箱" (marquee speaker) group 35/38/41/44, e.g. the **HBS613 LED** speaker. 488-byte writes. Also exposes `0xFF12` (speaker audio, not used for the display). |
+
+#### 11×11 speakers (model 41)
+Same `55 … 88` commands, but every `B1` packet carries exactly one 11×11 frame (242 bytes, column-major RGB444) and byte 3 is the packet/frame number, not a byte offset. The app waits 100 ms between packets.
+
+| What | Packets | Native function |
 |---|---|---|
-| `0000ae00-1111-0002-8000-00805f9b36fb` | "HBS613 LED" Bluetooth speaker | **24×24 full colour** (per its owner); also has service `0xFF12`. The UUID doesn't encode the panel, so the controller defaults to 24×24 RGB444 and the size and layout can be changed. Assumed to use the same `55 … 88` commands. |
+| Still image | `55 B1 00 00 <242> 00 88`, then `55 B6 01 00 00 00 00 88` | `getImageData11x11` / `getMaterialImageData` |
+| Save to slot *n* (optional) | `55 C6 <n+1>` (3 bytes, no `88`), after the above | same |
+| Animation | `55 B1 00 <frame#> <242> <speed> 88` per frame, then `55 B6 02 00 00 00 00 88`. `speed` = the material file's per-frame byte − 2 (5 if that is < 1) | `getGifData11x11` |
+| Scrolling text | strip encoded column-major, zero-padded to whole 11-column frames; `55 B1 00 <i> <242> 00 88` per frame, then `55 B6 03 <dir> <speed> <columns LE16> 88`. Direction 0 (still) sends the first frame as a still image instead. The app defaults to dir 2 (left), speed 5. | `getScrollData` (step 1; 16×16 uses step 2, 12×32 step 3) |
+| Brightness | `55 B8 <0-5> 05 00 00 88` | unchanged |
 
 ### Framing
 Every command is `55 <cmd> … 88`.

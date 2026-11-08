@@ -139,8 +139,8 @@ XB_MODELS = [
     ("0000ae00-1616-1111-8015-00805f9b36fb", 22, 16, 16, "rgb444", 220),
     ("0000ae00-1616-1111-8016-00805f9b36fb", 23, 16, 16, "rgb444", 220),
     ("0000ae00-3232-0000-8000-00805f9b34fb", 2, 32, 32, "split", 488),
-    # not in app 1.3.51; seen on the "HBS613 LED" speaker (24x24 full colour, per its owner)
-    ("0000ae00-1111-0002-8000-00805f9b36fb", 0, 24, 24, "rgb444", 220),
+    # app 1.4.02: model 41, "LED_11X11" marquee speakers such as the HBS613 LED
+    ("0000ae00-1111-0002-8000-00805f9b36fb", 41, 11, 11, "rgb444", 488),
 ]
 XB_GAP = 0.05            # the app sleeps 50 ms between writes (BleClient.TIME)
 XB_DIRS = {"still": 0, "right": 1, "left": 2, "up": 3, "down": 4}
@@ -151,7 +151,8 @@ class XBModel:
         self.svc, self.model, self.w, self.h, self.fmt, self.mtu = svc, model, w, h, fmt, mtu
         self.write = "0000ae01" + svc[8:]
         self.frame_bytes = w * h // 8 if fmt == "mono" else w * h * 2
-        self.chunk = self.frame_bytes if fmt == "mono" else (768 if h == 12 else 512)
+        self.idx = (w, h) == (11, 11)          # one frame per packet, header byte 3 = packet number
+        self.chunk = self.frame_bytes if fmt == "mono" or self.idx else (768 if h == 12 else 512)
         self.can_animate = fmt in ("mono", "rgb444") and self.frame_bytes == self.chunk
 
 
@@ -185,9 +186,10 @@ def xb_encode(rgb: bytes, w: int, h: int, fmt: str) -> bytes:
     return bytes(out)
 
 
-def xb_data_packets(data: bytes, chunk: int, frame_byte: int = 0):
-    """55 B1 <byte offset LE16> <chunk> <frame byte> 88"""
-    return [bytes([0x55, 0xB1, i & 255, (i >> 8) & 255]) + data[i:i + chunk] + bytes([frame_byte, 0x88])
+def xb_data_packets(data: bytes, chunk: int, frame_byte: int = 0, idx: bool = False):
+    """55 B1 <byte offset LE16> <chunk> <frame byte> 88; 11x11: 55 B1 00 <packet number> <chunk> <frame byte> 88"""
+    return [bytes([0x55, 0xB1, 0, (i // chunk) & 255] if idx else [0x55, 0xB1, i & 255, (i >> 8) & 255])
+            + data[i:i + chunk] + bytes([frame_byte, 0x88])
             for i in range(0, len(data), chunk)]
 
 
@@ -197,14 +199,15 @@ def xb_image_packets(m: XBModel, rgb: bytes):
         l1, l2 = ((len(data) % 256) + 6) & 255, ((len(data) + 6) >> 8) & 255
         return [bytes([0x55, 0xB1, 1, 1, l1, l2]) + data + bytes([l1, l2, 0, 0x88]),
                 bytes([0x55, 0xB6, 0, 0, 10, 29, 0x88])]
-    return xb_data_packets(data, m.chunk) + [bytes([0x55, 0xB6, 1, 0, 0, 0, 0, 0x88])]
+    return xb_data_packets(data, m.chunk, 0, m.idx) + [bytes([0x55, 0xB6, 1, 0, 0, 0, 0, 0x88])]
 
 
 def xb_anim_packets(m: XBModel, frames, speed=5):
     if not m.can_animate:
         return xb_image_packets(m, frames[0])
     data = b"".join(xb_encode(f, m.w, m.h, m.fmt) for f in frames)
-    return xb_data_packets(data, m.frame_bytes, max(1, min(255, speed * 5))) + [bytes([0x55, 0xB6, 2, 0, 0, 0, 0, 0x88])]
+    sb = max(1, min(20, speed)) if m.idx else max(1, min(255, speed * 5))
+    return xb_data_packets(data, m.frame_bytes, sb, m.idx) + [bytes([0x55, 0xB6, 2, 0, 0, 0, 0, 0x88])]
 
 
 def crop_cols(strip: bytes, sw: int, h: int, x0: int, w: int) -> bytes:
@@ -225,6 +228,12 @@ def xb_text_packets(m: XBModel, strip: bytes, sw: int, direction=2, speed=5):
         frames = max(1, -(-sw // m.w))
         data = b"".join(xb_encode(crop_cols(strip, sw, h, f * m.w, m.w), m.w, h, "mono") for f in range(frames))
         width = sw + 6 if m.w == 48 else frames * m.w
+    elif m.idx:                                # 11x11 (getScrollData): pad to whole frames, width = columns
+        if direction == 0:
+            return xb_image_packets(m, crop_cols(strip, sw, h, 0, m.w))
+        raw = xb_encode(strip, sw, h, "rgb444")
+        data = raw + bytes(-len(raw) % m.frame_bytes or 0)
+        width = len(data) // h // 2
     elif m.fmt == "rgb444":
         cols = sw + 8 if (h == 12 and direction != 0) else sw
         raw = xb_encode(crop_cols(strip, sw, h, 0, cols), cols, h, "rgb444")
@@ -234,7 +243,7 @@ def xb_text_packets(m: XBModel, strip: bytes, sw: int, direction=2, speed=5):
         raw = xb_encode(strip, sw, h, "split")
         data = raw + bytes(max(m.frame_bytes - len(raw), -len(raw) % m.chunk))
         width = len(data) // h
-    return xb_data_packets(data, m.chunk) + [bytes([0x55, 0xB6, 3, direction, speed, width & 255, (width >> 8) & 255, 0x88])]
+    return xb_data_packets(data, m.chunk, 0, m.idx) + [bytes([0x55, 0xB6, 3, direction, speed, width & 255, (width >> 8) & 255, 0x88])]
 
 
 def xb_brightness(pct):  return bytes([0x55, 0xB8, round(max(0, min(100, pct)) / 100 * 5), 5, 0, 0, 0x88])
@@ -331,7 +340,7 @@ class Display:
         step = min(self.xb.mtu, self.mtu_payload) if xb else self.mtu_payload
         for i in range(0, len(data), step):
             await self.client.write_gatt_char(self.xb.write if xb else WRITE_CHAR, data[i:i + step], response=False)
-            await asyncio.sleep(XB_GAP if xb else 0.01)
+            await asyncio.sleep((0.1 if self.xb.idx else XB_GAP) if xb else 0.01)
 
     async def send_all(self, packets):
         for p in packets:

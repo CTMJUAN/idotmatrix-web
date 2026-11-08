@@ -609,7 +609,7 @@ function send(bytes, quiet = false, reliable = false) {
         await (confirmed ? wch.writeValueWithResponse(part)
           : wch.writeValueWithoutResponse ? wch.writeValueWithoutResponse(part) : wch.writeValue(part));
         i += part.length;
-        if (FAM === "xb") await new Promise(r => setTimeout(r, XB_GAP));   /* badges need a pause between writes */
+        if (FAM === "xb") await new Promise(r => setTimeout(r, XBM?.idx ? 100 : XB_GAP));   /* badges need a pause between writes */
       } catch (e) {
         const next = chunk > 244 ? 244 : chunk > 180 ? 180 : chunk > 20 ? 20 : 0;
         if (!next) { log("write failed: " + e.message, "err"); throw e; }
@@ -648,21 +648,23 @@ const XB_MODELS = [
   ["0000ae00-1616-1111-8013-00805f9b36fb", 20, 16, 16, "rgb444", 220],
   ["0000ae00-1616-1111-8015-00805f9b36fb", 22, 16, 16, "rgb444", 220],
   ["0000ae00-1616-1111-8016-00805f9b36fb", 23, 16, 16, "rgb444", 220],
-  ["0000ae00-3232-0000-8000-00805f9b34fb", 2, 32, 32, "split", 488]
+  ["0000ae00-3232-0000-8000-00805f9b34fb", 2, 32, 32, "split", 488],
+  /* XiaoBai 1.4.02: model 41 = HBS613-style "marquee speaker", LED_11X11 (libstrongled getImageData11x11) */
+  ["0000ae00-1111-0002-8000-00805f9b36fb", 41, 11, 11, "rgb444", 488]
 ].map(r => xbModel(...r));
 function xbModel(svc, model, w, h, fmt, mtu) {
   /* bytes per B1 packet: one frame on 1-bit panels, 768 on 12×32/12×29, 512 on 16×16 and 32×32 */
   const frameBytes = fmt === "mono" ? Math.ceil(w * h / 8) : w * h * 2;
-  const chunk = fmt === "mono" ? frameBytes : h === 12 ? 768 : 512;
-  return { svc, write: svc.replace(/^0000ae00/, "0000ae01"), model, w, h, fmt, mtu, frameBytes, chunk,
+  /* 11×11 speakers: one whole frame per packet, header byte 3 = frame/packet number instead of a byte offset */
+  const idx = w === 11 && h === 11;
+  const chunk = fmt === "mono" || idx ? frameBytes : h === 12 ? 768 : 512;
+  return { svc, write: svc.replace(/^0000ae00/, "0000ae01"), model, w, h, fmt, mtu, frameBytes, chunk, idx,
     canAnimate: (fmt === "mono" || fmt === "rgb444") && frameBytes === chunk, canText: fmt !== "rgb555",
     clockModel: [6, 13].includes(model) };
 }
 /* XiaoBai-family devices seen in the wild that aren't in app 1.3.51: the UUID doesn't give the panel,
    so size comes from the Panel menu and pixel type from #xbFmt (both remembered) */
-const XB_UNLISTED = [
-  ["0000ae00-1111-0002-8000-00805f9b36fb", "HBS613 LED speaker", "24x24", "rgb444"]   /* size + type confirmed by owner */
-];
+const XB_UNLISTED = [];   /* HBS613 moved to XB_MODELS once app 1.4.02 showed it is model 41 (11×11) */
 function xbUnlisted(svc, label) {
   const { w, h } = panel(); let fmt = "rgb444";
   try { fmt = localStorage.getItem("idm-xbfmt") || fmt; } catch {}
@@ -700,12 +702,14 @@ function xbEncode(buf, W, H, fmt = XBM.fmt) {
   }
   return out;
 }
-/* 55 B1 <offset LE16> <chunk> <f> 88 */
+/* 55 B1 <offset LE16> <chunk> <f> 88; on 11×11 speakers 55 B1 00 <packet number> <chunk> <f> 88 */
 function xbDataPackets(data, chunk, frameByte = () => 0) {
-  const out = [];
+  const out = [], idx = XBM?.idx;
   for (let i = 0, n = 0; i < data.length; i += chunk, n++) {
     const part = data.subarray(i, i + chunk), p = new Uint8Array(part.length + 6);
-    p[0] = 0x55; p[1] = 0xB1; p[2] = i & 255; p[3] = (i >> 8) & 255; p.set(part, 4);
+    p[0] = 0x55; p[1] = 0xB1;
+    if (idx) { p[2] = 0; p[3] = n & 255; } else { p[2] = i & 255; p[3] = (i >> 8) & 255; }
+    p.set(part, 4);
     p[p.length - 2] = frameByte(n); p[p.length - 1] = 0x88; out.push(p);
   }
   return out;
@@ -733,7 +737,8 @@ async function xbAnim(frames, speed = 5, quiet = true) {
   if (!m.canAnimate) { log("this badge can't take animations from here, so I'm showing the first frame", "err"); return xbImage(frames[0], quiet); }
   const data = new Uint8Array(frames.length * m.frameBytes);
   frames.forEach((f, i) => data.set(xbEncode(f, m.w, m.h), i * m.frameBytes));
-  const sb = Math.max(1, Math.min(255, speed * 5));
+  /* 11×11: trailer = file speed - 2 (getGifData11x11), small numbers; others: speed × 5 */
+  const sb = m.idx ? Math.max(1, Math.min(20, speed)) : Math.max(1, Math.min(255, speed * 5));
   await xbSendAll(xbDataPackets(data, m.frameBytes, () => sb), quiet);
   await send(new Uint8Array([0x55, 0xB6, 2, 0, 0, 0, 0, 0x88]), quiet);
 }
@@ -746,6 +751,11 @@ async function xbText(strip, SW, dir = 2, speed = 5, quiet = false) {
     const frames = Math.max(1, Math.ceil(SW / m.w)); data = new Uint8Array(frames * m.frameBytes);
     for (let f = 0; f < frames; f++) data.set(xbEncode(xbCrop(strip, SW, f * m.w, m.w), m.w, H), f * m.frameBytes);
     width = m.w === 48 ? SW + 6 : frames * m.w;
+  } else if (m.idx) {                         /* 11×11 (getScrollData): columns padded to whole 11-column frames, width = columns */
+    if (dir === 0) return xbImage(xbCrop(strip, SW, 0, m.w), quiet);
+    const raw = xbEncode(strip, SW, H, "rgb444");
+    data = new Uint8Array(Math.max(1, Math.ceil(raw.length / m.frameBytes)) * m.frameBytes); data.set(raw);
+    width = data.length / H / 2;
   } else if (m.fmt === "rgb444") {
     let cols = SW, s = strip;
     if (H === 12 && dir !== 0) { s = xbCrop(strip, SW, 0, SW + 8); cols = SW + 8; }   /* 8 blank columns, like send12X32Data */
@@ -2168,7 +2178,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.5");
+log("Matrix Control version 2026-11-08.6");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
