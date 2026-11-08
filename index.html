@@ -571,6 +571,8 @@ async function connect(showAll = false) {
   applyFamily();
   setConnected(true);
   if (!isXB()) send(pSyncTime());
+  /* the app sets the clock 1 s after every connection; do the same so the built-in clock is right */
+  else if (XBM.clockModel) setTimeout(() => dev && send(xbTime(), true).then(() => log("Speaker/badge clock set to " + new Date().toLocaleTimeString())).catch(() => {}), 1000);
 }
 function setStatus(t, on = false) { const s = $("#status"); s.textContent = t; s.classList.toggle("on", on); }
 function setConnected(on) {
@@ -661,7 +663,7 @@ function xbModel(svc, model, w, h, fmt, mtu) {
   const chunk = fmt === "mono" || idx ? frameBytes : h === 12 ? 768 : 512;
   return { svc, write: svc.replace(/^0000ae00/, "0000ae01"), model, w, h, fmt, mtu, frameBytes, chunk, idx,
     canAnimate: (fmt === "mono" || fmt === "rgb444") && frameBytes === chunk, canText: fmt !== "rgb555",
-    clockModel: [6, 13].includes(model) };
+    clockModel: [6, 13, 35, 38, 41, 43, 44, 47].includes(model) };
 }
 /* XiaoBai-family devices seen in the wild that aren't in app 1.3.51: the UUID doesn't give the panel,
    so size comes from the Panel menu and pixel type from #xbFmt (both remembered) */
@@ -788,7 +790,9 @@ function xbTime() {
   const d = new Date();
   return XBM.model === 13
     ? new Uint8Array([0x55, 0xC1, 0x0F, d.getSeconds(), d.getMinutes(), d.getHours(), d.getDate(), d.getMonth() + 1, d.getFullYear() % 100, 0, 0x88])
-    : new Uint8Array([0x55, 0xC1, 0x10, d.getSeconds(), bcd(d.getMinutes()), bcd(d.getHours()), 0, 0x88]);
+    /* app 1.4.02 (v2/v): the speaker group (35/38/41/43/44/47) wants the seconds in BCD too */
+    : new Uint8Array([0x55, 0xC1, 0x10, [35, 38, 41, 43, 44, 47].includes(XBM.model) ? bcd(d.getSeconds()) : d.getSeconds(),
+        bcd(d.getMinutes()), bcd(d.getHours()), 0, 0x88]);
 }
 /* music bars: 55 B7 <7 heights> <hollow> 88 (MusicBleUtil) */
 function xbBars(levels, hollow = 0) {
@@ -2227,7 +2231,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.10");
+log("Matrix Control version 2026-11-08.11");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>

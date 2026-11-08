@@ -253,7 +253,8 @@ def xb_time(model: int):
     t = time.localtime(); bcd = lambda n: (n // 10) * 16 + n % 10
     if model == 13:
         return bytes([0x55, 0xC1, 0x0F, t.tm_sec, t.tm_min, t.tm_hour, t.tm_mday, t.tm_mon, t.tm_year % 100, 0, 0x88])
-    return bytes([0x55, 0xC1, 0x10, t.tm_sec, bcd(t.tm_min), bcd(t.tm_hour), 0, 0x88])
+    sec = bcd(t.tm_sec) if model in (35, 38, 41, 43, 44, 47) else t.tm_sec   # speaker group: BCD seconds (app 1.4.02)
+    return bytes([0x55, 0xC1, 0x10, sec, bcd(t.tm_min), bcd(t.tm_hour), 0, 0x88])
 
 
 def render_text_strip(text, h, font_path=None):
