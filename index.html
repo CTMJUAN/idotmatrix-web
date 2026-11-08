@@ -112,7 +112,7 @@ body:not(.fam-xb) .xb-only{display:none!important}
     <option value="29x12">29×12</option><option value="24x12">24×12</option><option value="30x10">30×10</option></optgroup>
   </select></label>
   <button id="connect" class="primary">Connect</button>
-  <button id="connectAll" title="List every nearby Bluetooth device">Show all devices</button>
+  <button id="connectAll" title="List every nearby Bluetooth device (use this for XiaoBai badges and speakers)">Show all devices</button>
 </header>
 
 <main>
@@ -463,7 +463,7 @@ async function connect(showAll = false) {
   log(showAll ? "scanning for ALL nearby Bluetooth devices…" : "scanning for iDotMatrix displays and XiaoBai badges…");
   try { dev = await navigator.bluetooth.requestDevice(opts); }
   catch (e) {
-    log(e.name === "NotFoundError" ? "no device chosen. If your display wasn't listed, try \"Show all devices\"" : e.name + ": " + e.message, "err");
+    log(e.name === "NotFoundError" ? "no device chosen. XiaoBai badges and speakers don't announce their type, so they only appear under \"Show all devices\"" : e.name + ": " + e.message, "err");
     return;
   }
   log("selected: " + (dev.name || "(no name)") + "  id " + dev.id);
