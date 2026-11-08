@@ -158,6 +158,12 @@ None of these are needed to drive the display, so a custom controller can run fu
 | `0000ae00-1616-1111-8016-00805f9b36fb` | 23 | 16×16 | RGB444 | "T2", notify `ae02` |
 | `0000ae00-3232-0000-8000-00805f9b34fb` | 2 | 32×32 | RGB444, split halves | 488-byte writes |
 
+**Seen in the wild, not in app 1.3.51:**
+
+| Service UUID | Device | Notes |
+|---|---|---|
+| `0000ae00-1111-0002-8000-00805f9b36fb` | "HBS613 LED" Bluetooth speaker | also has service `0xFF12`. The UUID doesn't encode the panel size, so the controller lets you set the size and LED type by hand. Its display is assumed to use the same `55 … 88` commands. |
+
 ### Framing
 Every command is `55 <cmd> … 88`.
 

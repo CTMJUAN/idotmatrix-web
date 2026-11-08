@@ -127,6 +127,11 @@ body:not(.fam-xb) .xb-only{display:none!important}
       <button data-cmd="time" class="xb-only xb-clock">Sync badge clock</button><button data-cmd="xbclock" class="xb-only xb-clock">Show badge clock</button></div>
     <div class="row xb-only"><span class="chk"><input type="checkbox" id="xbPowerAnim"> Play animation at power-on</span></div>
     <p class="note xb-only" id="xbInfo"></p>
+    <div class="row xb-only xb-unlisted"><label>LED type</label><select id="xbFmt">
+      <option value="mono">Single colour (1-bit)</option>
+      <option value="rgb444">Full colour</option>
+      <option value="split">Full colour, 32×32 layout</option>
+    </select></div>
   </section>
 
   <section class="idm-only">
@@ -446,7 +451,11 @@ const hex = b => [...b].map(x => x.toString(16).padStart(2, "0")).join(" ");
 /* ---------- panel size ---------- */
 function panel() { const [w, h] = $("#size").value.split("x").map(Number); return { w, h }; }
 try { const s = localStorage.getItem("idm-size"); if (s) $("#size").value = s; } catch {}
-$("#size").onchange = () => { try { localStorage.setItem("idm-size", $("#size").value); } catch {} resizePad(); renderImg(); };
+$("#size").onchange = () => {
+  try { localStorage.setItem("idm-size", $("#size").value); } catch {}
+  if (typeof XBM !== "undefined" && XBM?.unlisted) { XBM = xbUnlisted(XBM.svc, XBM.label); applyFamily(); }
+  resizePad(); renderImg();
+};
 
 /* ---------- connection ---------- */
 async function connect(showAll = false) {
@@ -492,10 +501,22 @@ async function connect(showAll = false) {
     }
   }
   if (!svc) {
+    for (const [u, label] of XB_UNLISTED) {
+      if (seen.length && !seen.includes(u)) continue;
+      try { svc = await server.getPrimaryService(u); XBM = xbUnlisted(u, label); FAM = "xb"; break; } catch {}
+    }
+  }
+  if (!svc) {
     log("services this device offers the page: " + (seen.join(", ") || "none"), "err");
     throw new Error("connected, but no iDotMatrix or XiaoBai control service was found (see the services line above)");
   }
-  wch = await svc.getCharacteristic(isXB() ? XBM.write : WRITE);
+  try { wch = await svc.getCharacteristic(isXB() ? XBM.write : WRITE); }
+  catch (e) {
+    const chars = await svc.getCharacteristics();
+    wch = chars.find(c => c.properties.writeWithoutResponse) || chars.find(c => c.properties.write);
+    if (!wch) throw new Error("the control service has nothing to write to (" + chars.map(c => c.uuid).join(", ") + ")");
+    log("using write channel " + wch.uuid, "rx");
+  }
   for (const ch of await svc.getCharacteristics()) {
     if (ch.properties.notify) {
       try { await ch.startNotifications(); } catch { continue; }
@@ -503,7 +524,12 @@ async function connect(showAll = false) {
     }
   }
   chunk = isXB() ? XBM.mtu : 509;
-  if (isXB()) {
+  if (isXB() && XBM.unlisted) {
+    $("#xbFmt").value = XBM.fmt;
+    $("#xbInfo").textContent = `${XBM.label}: this model is newer than the XiaoBai app I decoded, so set its size in the Panel menu ` +
+      `and its LED type below, then try Solid colour → white. When the whole display lights up, the settings are right.`;
+    log(`XiaoBai-family device (${XBM.svc}); using ${XBM.w}×${XBM.h} ${XBM.fmt}. Adjust Panel size and LED type if the picture is wrong`, "rx");
+  } else if (isXB()) {
     const v = `${XBM.w}x${XBM.h}`;
     if (![...$("#size").options].some(o => o.value === v)) $("#size").add(new Option(`${XBM.w}×${XBM.h}`, v));
     $("#size").value = v; $("#size").dispatchEvent(new Event("change"));
@@ -593,17 +619,29 @@ const XB_MODELS = [
   ["0000ae00-1616-1111-8015-00805f9b36fb", 22, 16, 16, "rgb444", 220],
   ["0000ae00-1616-1111-8016-00805f9b36fb", 23, 16, 16, "rgb444", 220],
   ["0000ae00-3232-0000-8000-00805f9b34fb", 2, 32, 32, "split", 488]
-].map(([svc, model, w, h, fmt, mtu]) => {
+].map(r => xbModel(...r));
+function xbModel(svc, model, w, h, fmt, mtu) {
   /* bytes per B1 packet: one frame on 1-bit panels, 768 on 12×32/12×29, 512 on 16×16 and 32×32 */
-  const frameBytes = fmt === "mono" ? w * h / 8 : w * h * 2;
+  const frameBytes = fmt === "mono" ? Math.ceil(w * h / 8) : w * h * 2;
   const chunk = fmt === "mono" ? frameBytes : h === 12 ? 768 : 512;
   return { svc, write: svc.replace(/^0000ae00/, "0000ae01"), model, w, h, fmt, mtu, frameBytes, chunk,
     canAnimate: (fmt === "mono" || fmt === "rgb444") && frameBytes === chunk, canText: fmt !== "rgb555",
     clockModel: [6, 13].includes(model) };
-});
-const XB_SERVICES = XB_MODELS.map(m => m.svc);
+}
+/* XiaoBai-family devices seen in the wild that aren't in app 1.3.51: the UUID doesn't give the panel,
+   so size comes from the Panel menu and pixel type from #xbFmt (both remembered) */
+const XB_UNLISTED = [
+  ["0000ae00-1111-0002-8000-00805f9b36fb", "HBS613 LED speaker"]
+];
+function xbUnlisted(svc, label) {
+  const { w, h } = panel(); let fmt = "rgb444";
+  try { fmt = localStorage.getItem("idm-xbfmt") || fmt; } catch {}
+  const m = xbModel(svc, 0, w, h, fmt === "split" && (w !== 32 || h !== 32) ? "rgb444" : fmt, 220);
+  m.label = label; m.unlisted = true; return m;
+}
+const XB_SERVICES = [...XB_MODELS.map(m => m.svc), ...XB_UNLISTED.map(u => u[0])];
 /* not used for control, only so the log can say what an unknown device offers */
-const PROBE_SERVICES = [0xae00, 0xae30, 0xffe0, 0xfff0, 0xfee0, 0xfee7, 0xff00, 0xffd0, 0xfd00, 0xa950];
+const PROBE_SERVICES = [0xae00, 0xae30, 0xffe0, 0xfff0, 0xfee0, 0xfee7, 0xff00, 0xff12, 0xffd0, 0xfd00, 0xa950];
 const isXB = () => FAM === "xb" && XBM;
 const isMono = () => isXB() && XBM.fmt === "mono";
 const xbSleep = ms => new Promise(r => setTimeout(r, ms));
@@ -749,6 +787,10 @@ async function decodeGifFrames(bytes, W, H, max = 24) {
   }
   return out;
 }
+$("#xbFmt").onchange = e => {
+  try { localStorage.setItem("idm-xbfmt", e.target.value); } catch {}
+  if (XBM?.unlisted) { XBM = xbUnlisted(XBM.svc, XBM.label); applyFamily(); renderImg(); log(`LED type set to ${XBM.fmt}`); }
+};
 /* turn the page into badge mode or iDotMatrix mode */
 function applyFamily() {
   document.body.classList.toggle("fam-xb", FAM === "xb");
@@ -756,6 +798,7 @@ function applyFamily() {
   if (FAM === "xb" && +$("#txMode").value > 4) $("#txMode").value = 1;
   $$(".xb-anim").forEach(e => e.hidden = !(isXB() && XBM.canAnimate));
   $$(".xb-clock").forEach(e => e.hidden = !(isXB() && XBM.clockModel));
+  $$(".xb-unlisted").forEach(e => e.hidden = !(isXB() && XBM.unlisted));
   $$("#txColMode, #txBgMode").forEach(e => e.closest("label").hidden = isMono());   /* single-colour badges */
   if (typeof txRender === "function") try { txRender(); } catch {}
 }
