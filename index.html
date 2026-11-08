@@ -451,7 +451,7 @@ $("#size").onchange = () => { try { localStorage.setItem("idm-size", $("#size").
 /* ---------- connection ---------- */
 async function connect(showAll = false) {
   if (dev?.gatt.connected) { dev.gatt.disconnect(); return; }
-  const opts = showAll ? { acceptAllDevices: true, optionalServices: [SERVICE, ...XB_SERVICES] } : {
+  const opts = showAll ? { acceptAllDevices: true, optionalServices: [SERVICE, ...XB_SERVICES, ...PROBE_SERVICES] } : {
     filters: [
       { namePrefix: "IDM" }, { namePrefix: "iDM" }, { namePrefix: "idm" },
       { services: [SERVICE] },
@@ -469,12 +469,31 @@ async function connect(showAll = false) {
   log("selected: " + (dev.name || "(no name)") + "  id " + dev.id);
   dev.addEventListener("gattserverdisconnected", () => { setConnected(false); if (typeof clockStop === "function") clockStop(); });
   setStatus("Connecting…");
-  const server = await dev.gatt.connect();
-  let svc = null; FAM = "idm"; XBM = null;
-  try { svc = await server.getPrimaryService(SERVICE); }
-  catch {
-    for (const m of XB_MODELS) { try { svc = await server.getPrimaryService(m.svc); XBM = m; FAM = "xb"; break; } catch {} }
-    if (!svc) throw new Error("no iDotMatrix or XiaoBai service on this device");
+  /* Android often fails the first GATT connection, especially to a device that is also a phone speaker: retry */
+  let server;
+  for (let attempt = 1; ; attempt++) {
+    try { log(`connecting (attempt ${attempt})…`); server = await dev.gatt.connect(); break; }
+    catch (e) {
+      if (attempt >= 3) throw new Error(`couldn't open a connection after 3 tries (${e.message})`);
+      log(`attempt ${attempt} failed: ${e.message}; retrying`, "err"); await xbSleep(1200);
+    }
+  }
+  log("connected; looking for the display's control service…");
+  let svc = null, seen = []; FAM = "idm"; XBM = null;
+  try { seen = (await server.getPrimaryServices()).map(x => x.uuid); } catch (e) { log("couldn't list services: " + e.message, "err"); }
+  const fa = "000000fa-0000-1000-8000-00805f9b34fb";
+  try {
+    if (seen.includes(fa) || !seen.length) svc = await server.getPrimaryService(SERVICE);
+  } catch {}
+  if (!svc) {
+    for (const m of XB_MODELS) {
+      if (seen.length && !seen.includes(m.svc)) continue;
+      try { svc = await server.getPrimaryService(m.svc); XBM = m; FAM = "xb"; break; } catch {}
+    }
+  }
+  if (!svc) {
+    log("services this device offers the page: " + (seen.join(", ") || "none"), "err");
+    throw new Error("connected, but no iDotMatrix or XiaoBai control service was found (see the services line above)");
   }
   wch = await svc.getCharacteristic(isXB() ? XBM.write : WRITE);
   for (const ch of await svc.getCharacteristics()) {
@@ -583,6 +602,8 @@ const XB_MODELS = [
     clockModel: [6, 13].includes(model) };
 });
 const XB_SERVICES = XB_MODELS.map(m => m.svc);
+/* not used for control, only so the log can say what an unknown device offers */
+const PROBE_SERVICES = [0xae00, 0xae30, 0xffe0, 0xfff0, 0xfee0, 0xfee7, 0xff00, 0xffd0, 0xfd00, 0xa950];
 const isXB = () => FAM === "xb" && XBM;
 const isMono = () => isXB() && XBM.fmt === "mono";
 const xbSleep = ms => new Promise(r => setTimeout(r, ms));
@@ -805,10 +826,10 @@ const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
 /* ---------- controls ---------- */
 function connErr(e) {
-  const m = /service/i.test(e.message) || e.name === "NotFoundError"
-    ? "that device isn't an iDotMatrix display or a XiaoBai badge. Pick a different one."
-    : e.name + ": " + e.message;
-  log(m, "err"); setStatus("Not connected"); try { dev?.gatt.disconnect(); } catch {}
+  const m = e.name === "NotFoundError" && !/control service/.test(e.message)
+    ? "that device isn't an iDotMatrix display or a XiaoBai badge (" + e.message + "). Pick a different one."
+    : "couldn't connect: " + e.message;
+  log(m, "err"); setStatus("Not connected: " + (e.message || e.name).slice(0, 60)); try { dev?.gatt.disconnect(); } catch {}
 }
 $("#connect").onclick = () => connect().catch(connErr);
 $("#connectAll").onclick = () => connect(true).catch(connErr);
