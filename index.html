@@ -91,6 +91,7 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
 .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--muted);font-weight:600;padding:8px 12px;min-height:40px}
 .tab.on{color:var(--ink);border-bottom-color:var(--accent)}
 #lvLed{width:100%;max-width:320px;height:auto;border-radius:10px;background:#050505;border:1px solid var(--line)}
+[hidden]{display:none!important}
 body.fam-xb .idm-only{display:none!important}
 body:not(.fam-xb) .xb-only{display:none!important}
 .big{font-family:var(--mono);font-size:28px;width:90px;text-align:center}
@@ -451,6 +452,8 @@ function log(msg, cls = "") {
   while (el.childNodes.length > 300) el.removeChild(el.firstChild);
 }
 const hex = b => [...b].map(x => x.toString(16).padStart(2, "0")).join(" ");
+/* safety net: a failed write from a button that doesn't wait for it shows up in the log instead of vanishing */
+window.addEventListener("unhandledrejection", e => { if (!e.reason?.quiet) log("error: " + (e.reason?.message || e.reason), "err"); e.preventDefault(); });
 
 /* ---------- panel size ---------- */
 function panel() { const [w, h] = $("#size").value.split("x").map(Number); return { w, h }; }
@@ -483,7 +486,7 @@ async function connect(showAll = false) {
     return;
   }
   log("selected: " + (dev.name || "(no name)") + "  id " + dev.id);
-  dev.addEventListener("gattserverdisconnected", () => { setConnected(false); if (typeof clockStop === "function") clockStop(); });
+  dev.addEventListener("gattserverdisconnected", onDropped);
   setStatus("Connecting…");
   /* Android often fails the first GATT connection, especially to a device that is also a phone speaker: retry */
   let server;
@@ -575,6 +578,14 @@ async function connect(showAll = false) {
   else if (XBM.clockModel) setTimeout(() => dev && send(xbTime(), true).then(() => log("Speaker/badge clock set to " + new Date().toLocaleTimeString())).catch(() => {}), 1000);
 }
 function setStatus(t, on = false) { const s = $("#status"); s.textContent = t; s.classList.toggle("on", on); }
+/* the link dropped (or we disconnected): stop everything that keeps sending */
+function onDropped() {
+  wch = null; diyOn = false;
+  if (LV.running) liveStop();
+  if (CC.running) clockStop();
+  ackWaiters.splice(0).forEach(w => w.done(null));
+  setConnected(false);
+}
 function setConnected(on) {
   setStatus(on ? `Connected · ${dev?.name || "display"} · ${isXB() ? `XiaoBai ${XBM.w}×${XBM.h}` : "iDotMatrix"}` : "Not connected", on);
   $("#connect").textContent = on ? "Disconnect" : "Connect";
@@ -603,7 +614,12 @@ function waitAck(match = () => true, ms = 5000) {
 /* reliable = use write-with-response so the display confirms each packet (slower, nothing silently dropped) */
 function send(bytes, quiet = false, reliable = false) {
   const job = busy.then(async () => {
-    if (!wch) { log("not connected", "err"); return; }
+    if (!wch || dev?.gatt && !dev.gatt.connected) {
+      /* reject so multi-packet sends stop at once; log only the first refusal in a burst */
+      if (Date.now() - (send.warned || 0) > 2000) log("not connected: press Connect first", "err");
+      send.warned = Date.now();
+      throw Object.assign(new Error("not connected"), { quiet: true });
+    }
     if (!quiet) log("→ " + hex(bytes.slice(0, 24)) + (bytes.length > 24 ? ` … (${bytes.length} B)` : ""), "tx");
     for (let i = 0; i < bytes.length;) {
       const part = bytes.slice(i, i + chunk);
@@ -614,6 +630,8 @@ function send(bytes, quiet = false, reliable = false) {
         i += part.length;
         if (FAM === "xb") await new Promise(r => setTimeout(r, XBM?.idx ? 100 : XB_GAP));   /* badges need a pause between writes */
       } catch (e) {
+        /* a dropped link isn't a packet-size problem: don't shrink, just stop */
+        if (!dev?.gatt?.connected || e.name === "NetworkError") { if (Date.now() - (send.warned || 0) > 2000) log("write failed: the display disconnected", "err"); send.warned = Date.now(); e.quiet = true; throw e; }
         const next = chunk > 244 ? 244 : chunk > 180 ? 180 : chunk > 20 ? 20 : 0;
         if (!next) { log("write failed: " + e.message, "err"); throw e; }
         chunk = next; log("reducing packet size to " + chunk, "err");
@@ -960,6 +978,7 @@ $("#scA").onchange = $("#scB").onchange = sendScore;
 let srcImg = null;
 function loadImage(file) {
   const img = new Image(); img.onload = () => { srcImg = img; renderImg(); $("#imgSend").disabled = false; };
+  img.onerror = () => { srcImg = null; renderImg(); $("#imgSend").disabled = true; log(`"${file.name}" isn't a picture this browser can open`, "err"); };
   img.src = URL.createObjectURL(file);
 }
 function renderImg() {
@@ -1044,7 +1063,7 @@ function plot(e) {
 let xbDrawT = null;
 function flush() {
   flushT = null;
-  if (isXB()) { queue.clear(); if (!xbDrawT) xbDrawT = setTimeout(() => { xbDrawT = null; xbImage(canvasRGB(pad)); }, 250); return; }
+  if (isXB()) { queue.clear(); if (!xbDrawT) xbDrawT = setTimeout(() => { xbDrawT = null; xbImage(canvasRGB(pad), true, !XBM.idx); }, 250); return; }
   for (const [col, pts] of queue) for (let i = 0; i < pts.length; i += 100) send(pPixels(...rgbOf(col), pts.slice(i, i + 100)), true);
   queue.clear();
 }
@@ -1990,6 +2009,7 @@ function renderCard(c) {
   if (c.kind === "clock") return renderClock(new Date()).slice();
   const { w, h } = panel(); CC.W = w; CC.H = h; const buf = CC.buf = new Uint8Array(w * h * 3);
   const v = cardView(c), up = s => String(s ?? "").toUpperCase();
+  if (w < 16 && h < 16) return tinyCard(v, w, h, buf);
   let ax = 0, aw = w, ay = 0, ah = h;
   if (v.icon) {
     const s = Math.max(1, Math.floor(Math.min(h - 2, w * 0.42) / 10)), sz = s * 10;
@@ -2023,6 +2043,35 @@ function renderCard(c) {
     text(r.str, r.font, ax + Math.max(0, Math.floor((aw - tw) / 2)), y, r.s, r.col);
     y += textSize(r.str, r.font, r.s).h + gap;
   }
+  return buf;
+}
+
+/* tiny panels (11×11 speakers): nothing fits side by side, so show the card one line at a time,
+   splitting long lines into screen-sized pieces, about 1.3 s per page */
+function tinyCard(v, w, h, buf) {
+  const pages = [], fits = (t, f) => textSize(t, f).w <= w && textSize(t, f).h <= h;
+  const add = (str, col) => {
+    str = String(str ?? "").toUpperCase().trim(); if (!str) return;
+    for (const word of str.split(/\s+/)) {
+      const last = pages.at(-1);
+      if (last && last.col === col && last.join && fits(last.str + " " + word, "thin")) { last.str += " " + word; continue; }
+      /* break at - / : first (3-14 → 3- | 14), then by character */
+      let piece = "";
+      for (const tok of word.split(/(?<=[-\/:])/)) {
+        if (piece && !fits(piece + tok, "thin")) { pages.push({ str: piece, col }); piece = ""; }
+        if (fits(piece + tok, "thin")) { piece += tok; continue; }
+        for (const ch of tok) { if (piece && !fits(piece + ch, "thin")) { pages.push({ str: piece, col }); piece = ""; } piece += ch; }
+      }
+      pages.push({ str: piece, col, join: true });
+    }
+    pages.at(-1).join = false;
+  };
+  add(v.top, v.topCol || DIM); add(v.big, v.bigCol || [255, 255, 255]); add(v.bottom, v.botCol || DIM);
+  if (!pages.length) return buf;
+  const pg = pages[Math.floor(Date.now() / 1300) % pages.length];
+  /* single-line pieces: bold if it fits, else the 3×5 font, scaled up when there's room */
+  const font = fits(pg.str, "bold") ? "bold" : "thin", sc = fitScale(pg.str, font, w, h), sz = textSize(pg.str, font, sc);
+  text(pg.str, font, Math.max(0, Math.floor((w - sz.w) / 2)), Math.max(0, Math.floor((h - sz.h) / 2)), sc, pg.col);
   return buf;
 }
 
@@ -2177,7 +2226,7 @@ async function lvLoop() {
     if (performance.now() - LV.statT > 2000) {
       const s = (performance.now() - LV.statT) / 1000;
       $("#lvStat").textContent = LV.src === "info" ? `Live · ${LV.cards.length} card${LV.cards.length === 1 ? "" : "s"} · ${(LV.statB / 1024 / s).toFixed(1)} KB/s`
-        : LV.src === "music" ? `Live · ${(LV.statF / s).toFixed(1)} updates/s${isXB() ? " · native bars" : ""}`
+        : LV.src === "music" ? `Live · ${(LV.statF / s).toFixed(1)} updates/s${isXB() && !(XBM.idx && $("#muSend").value === "image") ? " · native bars" : ""}`
         : `Live · ${(LV.statF / s).toFixed(1)} fps · ${(LV.statB / 1024 / s).toFixed(1)} KB/s · ${LV.method}`;
       LV.statT = performance.now(); LV.statB = 0; LV.statF = 0;
     }
@@ -2231,7 +2280,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.11");
+log("Matrix Control version 2026-11-08.12");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
