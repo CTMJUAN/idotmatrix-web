@@ -91,6 +91,8 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
 .tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--muted);font-weight:600;padding:8px 12px;min-height:40px}
 .tab.on{color:var(--ink);border-bottom-color:var(--accent)}
 #lvLed{width:100%;max-width:320px;height:auto;border-radius:10px;background:#050505;border:1px solid var(--line)}
+body.fam-xb .idm-only{display:none!important}
+body:not(.fam-xb) .xb-only{display:none!important}
 .big{font-family:var(--mono);font-size:28px;width:90px;text-align:center}
 @media (max-width:420px){main{padding:12px 16px}section{padding:14px}}
 </style>
@@ -106,6 +108,8 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
     <option value="64x64">64×64</option><option value="32x8">32×8</option>
     <option value="32x16">32×16</option><option value="48x16">48×16</option>
     <option value="64x16">64×16</option><option value="48x24">48×24</option>
+    <optgroup label="XiaoBai badges"><option value="48x12">48×12</option><option value="32x12">32×12</option>
+    <option value="29x12">29×12</option><option value="24x12">24×12</option><option value="30x10">30×10</option></optgroup>
   </select></label>
   <button id="connect" class="primary">Connect</button>
   <button id="connectAll" title="List every nearby Bluetooth device">Show all devices</button>
@@ -115,14 +119,17 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
   <section>
     <h2>Display</h2>
     <div class="row"><label style="width:78px">Brightness</label><input type="range" id="bright" min="5" max="100" value="60"><span class="val" id="brightV">60</span></div>
-    <div class="row">
+    <div class="row idm-only">
       <button data-cmd="on">Screen on</button><button data-cmd="off">Screen off</button>
       <button data-cmd="flip1">Flip 180°</button><button data-cmd="flip0">Unflip</button>
     </div>
-    <div class="row"><button data-cmd="time">Sync clock to this device</button></div>
+    <div class="row"><button data-cmd="time" class="idm-only">Sync clock to this device</button>
+      <button data-cmd="time" class="xb-only xb-clock">Sync badge clock</button><button data-cmd="xbclock" class="xb-only xb-clock">Show badge clock</button></div>
+    <div class="row xb-only"><span class="chk"><input type="checkbox" id="xbPowerAnim"> Play animation at power-on</span></div>
+    <p class="note xb-only" id="xbInfo"></p>
   </section>
 
-  <section>
+  <section class="idm-only">
     <h2>Built-in clock</h2>
     <div class="row"><label>Style</label>
       <select id="cStyle"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select>
@@ -193,7 +200,7 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
           </select></div>
           <p class="note">Try "Full image" if the display doesn't update properly.</p>
         </details>
-        <div class="standalone">
+        <div class="standalone idm-only">
           <h3>Run without the phone <span class="tag">experimental</span></h3>
           <p class="note" style="margin:0 0 6px">Draws every minute in advance into an animated GIF timed to the clock, so the display keeps time on its own after you disconnect.</p>
           <div class="row">
@@ -222,6 +229,7 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
       <button class="tab on" data-src="info" role="tab">Info cards</button>
       <button class="tab" data-src="camera" role="tab">Camera</button>
       <button class="tab" data-src="screen" role="tab">Screen</button>
+      <button class="tab" data-src="music" role="tab">Music</button>
     </div>
     <div class="cc-wrap">
       <div class="cc-prev">
@@ -283,6 +291,13 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
         <div class="lvPane" data-src="screen" hidden>
           <p class="note" id="lvScreenNote">Shares a window, tab or your whole screen. On Android, Chrome can't share the screen, so use this from a computer.</p>
         </div>
+        <div class="lvPane" data-src="music" hidden>
+          <p class="note">Listens through your microphone and shows 7 frequency bars. XiaoBai badges draw the bars themselves (tiny packets, very smooth); iDotMatrix panels get them as pictures.</p>
+          <div class="cc-grid">
+            <label>Sensitivity<input type="range" id="muGain" min="20" max="400" value="150"></label>
+            <label>Bars<select id="muStyle"><option value="0">Solid</option><option value="1">Hollow</option></select></label>
+          </div>
+        </div>
         <div class="lvPane" data-src="camera screen" hidden>
           <div class="cc-grid">
             <label>Fit<select id="lvFit"><option value="cover">Fill (crop)</option><option value="contain">Fit (bars)</option><option value="stretch">Stretch</option></select></label>
@@ -293,7 +308,7 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
             <label>Colours<select id="lvPost"><option value="0">Full colour</option><option value="6">Poster (fewer colours)</option><option value="3">Comic</option><option value="2">Pop art</option></select></label>
           </div>
         </div>
-        <details style="margin-top:10px">
+        <details style="margin-top:10px" class="idm-only">
           <summary>How frames are sent</summary>
           <div class="row"><select id="lvMethod">
             <option value="image">Whole picture (recommended, glitch-free)</option>
@@ -317,7 +332,7 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
         <option value="6">Breathing</option><option value="7">Snowflakes</option><option value="8">Laser</option>
       </select></label>
       <label>Speed<input type="range" id="txSpeed" min="0" max="100" value="85"></label>
-      <label>Text size<select id="txSize"></select></label>
+      <label class="idm-only">Text size<select id="txSize"></select></label>
       <label>Font<span class="row" style="margin:0"><select id="txFont" style="flex:1;min-width:0">
         <option value="sans-serif">Sans</option><option value="serif">Serif</option><option value="monospace">Mono</option>
         <option value="'Arial Black', Impact, sans-serif">Heavy</option><option value="cursive">Script</option>
@@ -332,12 +347,13 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
     </div>
     <div class="row" style="margin-top:12px">
       <button class="primary" id="txShow">Show on display</button>
-      <button id="txAdd">Add to saved list</button>
+      <button id="txAdd" class="idm-only">Add to saved list</button>
       <div class="bar"><i id="txBar"></i></div>
     </div>
-    <p class="note">"Show on display" keeps the text running after your phone disconnects. To keep messages through a power-off as well, add them to the saved list and write it to the display's memory.</p>
+    <p class="note idm-only">"Show on display" keeps the text running after your phone disconnects. To keep messages through a power-off as well, add them to the saved list and write it to the display's memory.</p>
+    <p class="note xb-only">The badge scrolls the text by itself after you disconnect. Effects on badges: still, scroll left/right/up/down.</p>
 
-    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+    <div style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px" class="idm-only">
       <h2 style="margin-bottom:8px">Saved on display</h2>
       <ol id="txList" class="txlist"></ol>
       <div class="row">
@@ -370,12 +386,13 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
 
   <section>
     <h2>Animated GIF</h2>
-    <div class="drop">Pick a GIF that's already the panel's size: <input type="file" id="gifFile" accept="image/gif"></div>
-    <p class="note" id="gifInfo">The GIF is sent as-is, so resize it to the panel first (ezgif.com works well).</p>
+    <div class="drop"><span class="idm-only">Pick a GIF that's already the panel's size: </span><span class="xb-only">Pick any GIF (it's resized for the badge): </span><input type="file" id="gifFile" accept="image/gif"></div>
+    <p class="note" id="gifInfo"><span class="idm-only">The GIF is sent as-is, so resize it to the panel first (ezgif.com works well).</span></p>
+    <div class="row xb-only xb-anim"><label>Speed</label><input type="range" id="gifSpeed" min="1" max="10" value="5"><span class="val" id="gifSpeedV">5</span></div>
     <div class="row"><button class="primary" id="gifSend" disabled>Send GIF</button><div class="bar"><i id="gifBar"></i></div></div>
   </section>
 
-  <section>
+  <section class="idm-only">
     <h2>Countdown · Stopwatch · Score</h2>
     <div class="row"><label>Countdown</label><input type="number" id="cdM" min="0" max="99" value="5"> m <input type="number" id="cdS" min="0" max="59" value="0"> s</div>
     <div class="row"><button data-cd="1" class="primary">Start</button><button data-cd="2">Pause</button><button data-cd="3">Resume</button><button data-cd="0">Stop</button></div>
@@ -410,7 +427,7 @@ details{margin-top:8px;font-size:13px}summary{cursor:pointer;color:var(--muted)}
 
 <script>
 "use strict";
-const SERVICE = 0x00fa, WRITE = 0xfa02;
+const SERVICE = 0x00fa, WRITE = 0xfa02;   /* iDotMatrix; XiaoBai badges use 0000ae00-<model>-… (see XB_MODELS) */
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 let dev = null, wch = null, chunk = 509, busy = Promise.resolve();
 const ackWaiters = [];
@@ -434,15 +451,16 @@ $("#size").onchange = () => { try { localStorage.setItem("idm-size", $("#size").
 /* ---------- connection ---------- */
 async function connect(showAll = false) {
   if (dev?.gatt.connected) { dev.gatt.disconnect(); return; }
-  const opts = showAll ? { acceptAllDevices: true, optionalServices: [SERVICE] } : {
+  const opts = showAll ? { acceptAllDevices: true, optionalServices: [SERVICE, ...XB_SERVICES] } : {
     filters: [
       { namePrefix: "IDM" }, { namePrefix: "iDM" }, { namePrefix: "idm" },
       { services: [SERVICE] },
-      { manufacturerData: [{ companyIdentifier: 0x5254 }] }   // advert bytes 54 52 00 70 ("TR\0p")
+      { manufacturerData: [{ companyIdentifier: 0x5254 }] },   // advert bytes 54 52 00 70 ("TR\0p")
+      ...XB_SERVICES.map(u => ({ services: [u] }))             // XiaoBai badges advertise their model service
     ],
-    optionalServices: [SERVICE]
+    optionalServices: [SERVICE, ...XB_SERVICES]
   };
-  log(showAll ? "scanning for ALL nearby Bluetooth devices…" : "scanning for iDotMatrix displays…");
+  log(showAll ? "scanning for ALL nearby Bluetooth devices…" : "scanning for iDotMatrix displays and XiaoBai badges…");
   try { dev = await navigator.bluetooth.requestDevice(opts); }
   catch (e) {
     log(e.name === "NotFoundError" ? "no device chosen. If your display wasn't listed, try \"Show all devices\"" : e.name + ": " + e.message, "err");
@@ -452,21 +470,35 @@ async function connect(showAll = false) {
   dev.addEventListener("gattserverdisconnected", () => { setConnected(false); if (typeof clockStop === "function") clockStop(); });
   setStatus("Connecting…");
   const server = await dev.gatt.connect();
-  const svc = await server.getPrimaryService(SERVICE);
-  wch = await svc.getCharacteristic(WRITE);
+  let svc = null; FAM = "idm"; XBM = null;
+  try { svc = await server.getPrimaryService(SERVICE); }
+  catch {
+    for (const m of XB_MODELS) { try { svc = await server.getPrimaryService(m.svc); XBM = m; FAM = "xb"; break; } catch {} }
+    if (!svc) throw new Error("no iDotMatrix or XiaoBai service on this device");
+  }
+  wch = await svc.getCharacteristic(isXB() ? XBM.write : WRITE);
   for (const ch of await svc.getCharacteristics()) {
     if (ch.properties.notify) {
-      await ch.startNotifications();
+      try { await ch.startNotifications(); } catch { continue; }
       ch.addEventListener("characteristicvaluechanged", e => onNotify(new Uint8Array(e.target.value.buffer)));
     }
   }
-  chunk = 509;
+  chunk = isXB() ? XBM.mtu : 509;
+  if (isXB()) {
+    const v = `${XBM.w}x${XBM.h}`;
+    if (![...$("#size").options].some(o => o.value === v)) $("#size").add(new Option(`${XBM.w}×${XBM.h}`, v));
+    $("#size").value = v; $("#size").dispatchEvent(new Event("change"));
+    $("#xbInfo").textContent = `XiaoBai model ${XBM.model}: ${XBM.w}×${XBM.h}, ` +
+      (XBM.fmt === "mono" ? "single-colour LEDs" : "full colour") + (XBM.canAnimate ? ", animations supported" : "") + ".";
+    log(`XiaoBai badge detected: model ${XBM.model}, ${XBM.w}×${XBM.h} ${XBM.fmt}`, "rx");
+  }
+  applyFamily();
   setConnected(true);
-  send(pSyncTime());
+  if (!isXB()) send(pSyncTime());
 }
 function setStatus(t, on = false) { const s = $("#status"); s.textContent = t; s.classList.toggle("on", on); }
 function setConnected(on) {
-  setStatus(on ? `Connected · ${dev?.name || "display"}` : "Not connected", on);
+  setStatus(on ? `Connected · ${dev?.name || "display"} · ${isXB() ? `XiaoBai ${XBM.w}×${XBM.h}` : "iDotMatrix"}` : "Not connected", on);
   $("#connect").textContent = on ? "Disconnect" : "Connect";
   $("#connect").classList.toggle("primary", !on);
   $("#connectAll").hidden = on;
@@ -502,6 +534,7 @@ function send(bytes, quiet = false, reliable = false) {
         await (confirmed ? wch.writeValueWithResponse(part)
           : wch.writeValueWithoutResponse ? wch.writeValueWithoutResponse(part) : wch.writeValue(part));
         i += part.length;
+        if (FAM === "xb") await new Promise(r => setTimeout(r, XB_GAP));   /* badges need a pause between writes */
       } catch (e) {
         const next = chunk > 244 ? 244 : chunk > 180 ? 180 : chunk > 20 ? 20 : 0;
         if (!next) { log("write failed: " + e.message, "err"); throw e; }
@@ -512,6 +545,200 @@ function send(bytes, quiet = false, reliable = false) {
   busy = job.catch(() => {});
   return job;
 }
+
+/* ================= XiaoBai LED driver (com.smallwhite.led 1.3.51) ================= */
+/* Each model has its own service 0000ae00-<model>-…; write char = same UUID with ae01. See PROTOCOL.md Part 2. */
+let FAM = "idm", XBM = null;                       /* device family + XiaoBai model once connected */
+const XB_GAP = 50;                                 /* ms between writes, like BleClient.TIME */
+const XB_MODELS = [
+  ["0000ae00-0000-0000-8000-00805f9b34fb", 1, 30, 10, "rgb555", 220],
+  ["0000ae00-1030-0001-8000-00805f9b34fb", 4, 30, 10, "rgb555", 220],
+  ["0000ae00-1232-0000-8000-00805f9b34fb", 3, 32, 12, "rgb444", 220],
+  ["0000ae00-1232-0001-8000-00805f9b34fb", 6, 32, 12, "rgb444", 220],
+  ["0000ae00-1232-0002-8000-00805f9b34fb", 8, 32, 12, "rgb444", 220],
+  ["0000ae00-1232-0003-8000-00805f9b34fb", 9, 32, 12, "rgb444", 220],
+  ["0000ae00-1232-0004-8010-00805f9b34fb", 16, 32, 12, "rgb444", 220],
+  ["0000ae00-1229-1111-8012-00805f9b36fb", 19, 29, 12, "rgb444", 220],
+  ["0000ae00-1224-0100-8000-00805f9b34fb", 7, 24, 12, "mono", 220],
+  ["0000ae00-1248-0000-8000-00805f9b34fb", 5, 48, 12, "mono", 220],
+  ["0000ae00-1248-0100-8001-00805f9b34fb", 10, 48, 12, "mono", 220],
+  ["0000ae00-1248-0100-8002-00805f9b34fb", 11, 48, 12, "mono", 220],
+  ["0000ae00-1248-0100-800e-00805f9b34fb", 14, 48, 12, "mono", 220],
+  ["0000ae00-1248-0100-800f-00805f9b35fb", 15, 48, 12, "mono", 220],
+  ["0000ae00-1248-0100-8011-00805f9b35fb", 17, 48, 12, "mono", 220],
+  ["0000ae00-1248-0100-8013-00805f9b36fb", 18, 48, 12, "mono", 220],
+  ["0000ae00-1248-1111-8014-00805f9b36fb", 21, 48, 12, "mono", 220],
+  ["0000ae00-1616-0001-800c-00805f9b34fb", 12, 16, 16, "rgb444", 220],
+  ["0000ae00-1616-0002-800c-00805f9b34fb", 13, 16, 16, "rgb444", 220],
+  ["0000ae00-1616-1111-8013-00805f9b36fb", 20, 16, 16, "rgb444", 220],
+  ["0000ae00-1616-1111-8015-00805f9b36fb", 22, 16, 16, "rgb444", 220],
+  ["0000ae00-1616-1111-8016-00805f9b36fb", 23, 16, 16, "rgb444", 220],
+  ["0000ae00-3232-0000-8000-00805f9b34fb", 2, 32, 32, "split", 488]
+].map(([svc, model, w, h, fmt, mtu]) => {
+  /* bytes per B1 packet: one frame on 1-bit panels, 768 on 12×32/12×29, 512 on 16×16 and 32×32 */
+  const frameBytes = fmt === "mono" ? w * h / 8 : w * h * 2;
+  const chunk = fmt === "mono" ? frameBytes : h === 12 ? 768 : 512;
+  return { svc, write: svc.replace(/^0000ae00/, "0000ae01"), model, w, h, fmt, mtu, frameBytes, chunk,
+    canAnimate: (fmt === "mono" || fmt === "rgb444") && frameBytes === chunk, canText: fmt !== "rgb555",
+    clockModel: [6, 13].includes(model) };
+});
+const XB_SERVICES = XB_MODELS.map(m => m.svc);
+const isXB = () => FAM === "xb" && XBM;
+const isMono = () => isXB() && XBM.fmt === "mono";
+const xbSleep = ms => new Promise(r => setTimeout(r, ms));
+const lum = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+
+/* ---- pixel encoders: input is row-major RGB (W×H×3) ---- */
+function xbEncode(buf, W, H, fmt = XBM.fmt) {
+  const px = (x, y) => { const i = (y * W + x) * 3; return [buf[i], buf[i + 1], buf[i + 2]]; };
+  if (fmt === "mono") {                       /* rows, LSB = leftmost (DiyBleUtil.SendIMG12X48) */
+    const out = new Uint8Array(Math.ceil(W * H / 8));
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x; if (lum(...px(x, y)) > 96) out[i >> 3] |= 1 << (i & 7);
+    }
+    return out;
+  }
+  const out = new Uint8Array(W * H * 2); let k = 0;
+  const put444 = (x, y) => { const [r, g, b] = px(x, y); out[k++] = ((g >> 4) << 4) | (b >> 4); out[k++] = r >> 4; };
+  if (fmt === "rgb444") { for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) put444(x, y); return out; }
+  if (fmt === "split") {                      /* 32×32: rows 0-15 for every column, then rows 16-31 */
+    for (const [y0, y1] of [[0, H / 2], [H / 2, H]]) for (let x = 0; x < W; x++) for (let y = y0; y < y1; y++) put444(x, y);
+    return out;
+  }
+  for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) {   /* rgb555 (10×30) */
+    const [r, g, b] = px(x, y), r5 = (r * 31 / 256) | 0, g5 = (g * 31 / 256) | 0, b5 = (b * 31 / 256) | 0;
+    out[k++] = ((g5 & 7) << 5) + b5; out[k++] = (r5 << 2) + ((g5 & 24) >> 3);
+  }
+  return out;
+}
+/* 55 B1 <offset LE16> <chunk> <f> 88 */
+function xbDataPackets(data, chunk, frameByte = () => 0) {
+  const out = [];
+  for (let i = 0, n = 0; i < data.length; i += chunk, n++) {
+    const part = data.subarray(i, i + chunk), p = new Uint8Array(part.length + 6);
+    p[0] = 0x55; p[1] = 0xB1; p[2] = i & 255; p[3] = (i >> 8) & 255; p.set(part, 4);
+    p[p.length - 2] = frameByte(n); p[p.length - 1] = 0x88; out.push(p);
+  }
+  return out;
+}
+async function xbSendAll(packets, quiet = true) { for (const p of packets) await send(p, quiet); }
+
+/* still image (GiFUtil.sendIMG* + Image32x32Display) */
+async function xbImage(buf, quiet = true) {
+  const m = XBM, data = xbEncode(buf, m.w, m.h);
+  if (m.fmt === "rgb555") {                   /* 10×30 framing: 55 B1 01 01 L L <data> L L 00 88 + 55 B6 00 00 0A 1D 88 */
+    const L1 = ((data.length % 256) + 6) & 255, L2 = ((data.length + 6) >> 8) & 255;
+    const p = new Uint8Array(data.length + 10);
+    p.set([0x55, 0xB1, 1, 1, L1, L2]); p.set(data, 6); p.set([L1, L2, 0, 0x88], 6 + data.length);
+    await send(p, quiet); await send(new Uint8Array([0x55, 0xB6, 0, 0, 10, 29, 0x88]), quiet);
+    return p.length + 7;
+  }
+  const pk = xbDataPackets(data, m.chunk);
+  await xbSendAll(pk, quiet);
+  await send(new Uint8Array([0x55, 0xB6, 1, 0, 0, 0, 0, 0x88]), quiet);
+  return pk.reduce((a, p) => a + p.length, 8);
+}
+/* animation: one frame per packet, per-frame speed byte, then 55 B6 02 … (GiFUtil.sendGIF*) */
+async function xbAnim(frames, speed = 5, quiet = true) {
+  const m = XBM;
+  if (!m.canAnimate) { log("this badge can't take animations from here, so I'm showing the first frame", "err"); return xbImage(frames[0], quiet); }
+  const data = new Uint8Array(frames.length * m.frameBytes);
+  frames.forEach((f, i) => data.set(xbEncode(f, m.w, m.h), i * m.frameBytes));
+  const sb = Math.max(1, Math.min(255, speed * 5));
+  await xbSendAll(xbDataPackets(data, m.frameBytes, () => sb), quiet);
+  await send(new Uint8Array([0x55, 0xB6, 2, 0, 0, 0, 0, 0x88]), quiet);
+}
+/* scrolling text: strip (SW×H RGB) → B1 packets + 55 B6 03 dir speed width (TextSendUtil) */
+async function xbText(strip, SW, dir = 2, speed = 5, quiet = false) {
+  const m = XBM, H = m.h;
+  if (!m.canText) { log("text isn't supported on this badge yet, so I'm showing it as a picture", "err"); return xbImage(xbCrop(strip, SW, 0, m.w), quiet); }
+  let data, width;
+  if (m.fmt === "mono") {
+    const frames = Math.max(1, Math.ceil(SW / m.w)); data = new Uint8Array(frames * m.frameBytes);
+    for (let f = 0; f < frames; f++) data.set(xbEncode(xbCrop(strip, SW, f * m.w, m.w), m.w, H), f * m.frameBytes);
+    width = m.w === 48 ? SW + 6 : frames * m.w;
+  } else if (m.fmt === "rgb444") {
+    let cols = SW, s = strip;
+    if (H === 12 && dir !== 0) { s = xbCrop(strip, SW, 0, SW + 8); cols = SW + 8; }   /* 8 blank columns, like send12X32Data */
+    const raw = xbEncode(s, cols, H, "rgb444");
+    data = new Uint8Array(Math.ceil(raw.length / m.chunk) * m.chunk); data.set(raw);
+    width = H === 12 ? cols : data.length / H / 2;
+  } else {                                    /* 32×32 split (best effort) */
+    const raw = xbEncode(strip, SW, H, "split");
+    data = new Uint8Array(Math.max(m.frameBytes, Math.ceil(raw.length / m.chunk) * m.chunk)); data.set(raw);
+    width = data.length / H;
+  }
+  await xbSendAll(xbDataPackets(data, m.chunk), true);
+  await send(new Uint8Array([0x55, 0xB6, 3, dir, speed, width & 255, (width >> 8) & 255, 0x88]), quiet);
+}
+/* take columns [x0, x0+w) of a strip, padding with black */
+function xbCrop(strip, SW, x0, w) {
+  const H = strip.length / 3 / SW, out = new Uint8Array(w * H * 3);
+  for (let y = 0; y < H; y++) for (let x = 0; x < w; x++) {
+    const sx = x0 + x; if (sx >= SW) continue;
+    out.set(strip.subarray((y * SW + sx) * 3, (y * SW + sx) * 3 + 3), (y * w + x) * 3);
+  }
+  return out;
+}
+const xbBright = pct => send(new Uint8Array([0x55, 0xB8, Math.round(pct / 100 * 5), 5, 0, 0, 0x88]));
+const bcd = n => ((n / 10) | 0) * 16 + n % 10;
+function xbTime() {
+  const d = new Date();
+  return XBM.model === 13
+    ? new Uint8Array([0x55, 0xC1, 0x0F, d.getSeconds(), d.getMinutes(), d.getHours(), d.getDate(), d.getMonth() + 1, d.getFullYear() % 100, 0, 0x88])
+    : new Uint8Array([0x55, 0xC1, 0x10, d.getSeconds(), bcd(d.getMinutes()), bcd(d.getHours()), 0, 0x88]);
+}
+/* music bars: 55 B7 <7 heights> <hollow> 88 (MusicBleUtil) */
+function xbBars(levels, hollow = 0) {
+  const top = XBM.h === 32 ? 21 : XBM.h === 10 ? 11 : XBM.h - 1;
+  const p = new Uint8Array(11); p[0] = 0x55; p[1] = 0xB7;
+  for (let i = 0; i < 7; i++) p[2 + i] = Math.max(0, Math.min(top, Math.round((levels[i] || 0) * top)));
+  p[9] = hollow; p[10] = 0x88;
+  return p;
+}
+/* text strip for badges: draw with a system font at panel height, keep crisp pixels */
+function xbTextStrip(cfg) {
+  const H = panel().h, c = document.createElement("canvas"), ctx = c.getContext("2d", { willReadFrequently: true });
+  const fs = H <= 12 ? H + 1 : Math.round(H * 0.9), font = `${cfg.bold ? "bold " : ""}${fs}px ${cfg.font}`;
+  ctx.font = font; const W = Math.max(1, Math.ceil(ctx.measureText(cfg.text || " ").width) + 1);
+  c.width = W; c.height = H; ctx.font = font; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff";
+  ctx.fillText(cfg.text || " ", 0, H / 2 + (H <= 12 ? 1 : 0));
+  const a = ctx.getImageData(0, 0, W, H).data, out = new Uint8Array(W * H * 3);
+  const fg = rgbOf(cfg.color), bg = cfg.bgMode ? rgbOf(cfg.bg) : [0, 0, 0];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const on = a[(y * W + x) * 4 + 3] > 110, col = !on ? bg : cfg.colMode === 1 ? fg : hsvRGB((x / W) * 360 + cfg.colMode * 60);
+    out.set(col, (y * W + x) * 3);
+  }
+  return { buf: out, w: W };
+}
+function hsvRGB(h) { const f = n => { const k = (n + h / 60) % 6; return Math.round(255 * (1 - Math.max(0, Math.min(k, 4 - k, 1)))); }; return [f(5), f(3), f(1)]; }
+/* GIF → resized frames (Chrome's ImageDecoder) */
+async function decodeGifFrames(bytes, W, H, max = 24) {
+  if (!("ImageDecoder" in window)) return null;
+  const dec = new ImageDecoder({ data: bytes, type: "image/gif" });
+  await dec.tracks.ready;
+  const n = Math.min(dec.tracks.selectedTrack.frameCount, max), c = document.createElement("canvas"), out = [];
+  c.width = W; c.height = H; const ctx = c.getContext("2d", { willReadFrequently: true });
+  for (let i = 0; i < n; i++) {
+    const { image } = await dec.decode({ frameIndex: i });
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+    const s = Math.max(W / image.displayWidth, H / image.displayHeight), dw = image.displayWidth * s, dh = image.displayHeight * s;
+    ctx.drawImage(image, (W - dw) / 2, (H - dh) / 2, dw, dh); image.close();
+    out.push(canvasRGB(c));
+  }
+  return out;
+}
+/* turn the page into badge mode or iDotMatrix mode */
+function applyFamily() {
+  document.body.classList.toggle("fam-xb", FAM === "xb");
+  $$("#txMode option").forEach(o => o.disabled = FAM === "xb" && +o.value > 4);
+  if (FAM === "xb" && +$("#txMode").value > 4) $("#txMode").value = 1;
+  $$(".xb-anim").forEach(e => e.hidden = !(isXB() && XBM.canAnimate));
+  $$(".xb-clock").forEach(e => e.hidden = !(isXB() && XBM.clockModel));
+  $$("#txColMode, #txBgMode").forEach(e => e.closest("label").hidden = isMono());   /* single-colour badges */
+  if (typeof txRender === "function") try { txRender(); } catch {}
+}
+
 
 /* ---------- packet builders (see PROTOCOL.md) ---------- */
 const cmd = body => { const n = body.length + 2; return new Uint8Array([n & 255, n >> 8, ...body]); };
@@ -579,7 +806,7 @@ const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 /* ---------- controls ---------- */
 function connErr(e) {
   const m = /service/i.test(e.message) || e.name === "NotFoundError"
-    ? "that device doesn't have the iDotMatrix service (0x00fa). Pick a different one."
+    ? "that device isn't an iDotMatrix display or a XiaoBai badge. Pick a different one."
     : e.name + ": " + e.message;
   log(m, "err"); setStatus("Not connected"); try { dev?.gatt.disconnect(); } catch {}
 }
@@ -588,20 +815,24 @@ $("#connectAll").onclick = () => connect(true).catch(connErr);
 let brightT;
 $("#bright").oninput = e => {
   $("#brightV").textContent = e.target.value;
-  clearTimeout(brightT); brightT = setTimeout(() => send(pBright(+e.target.value)), 120);
+  clearTimeout(brightT); brightT = setTimeout(() => isXB() ? xbBright(+e.target.value) : send(pBright(+e.target.value)), 120);
 };
 $$("[data-cmd]").forEach(b => b.onclick = () => ({
   on: () => send(pScreen(true)), off: () => send(pScreen(false)),
   flip1: () => send(pFlip(true)), flip0: () => send(pFlip(false)),
-  time: () => send(pSyncTime())
+  time: () => send(isXB() ? xbTime() : pSyncTime()),
+  xbclock: () => send(new Uint8Array([0x55, 0xC1, 0x11, 0, 0x88]))
 })[b.dataset.cmd]());
+$("#xbPowerAnim").onchange = e => send(new Uint8Array([0x55, 0xC3, e.target.checked ? 1 : 0]));
+/* solid colour on a badge = a full-panel picture */
+function solidBuf(hexCol) { const { w, h } = panel(), c = rgbOf(hexCol), b = new Uint8Array(w * h * 3); for (let i = 0; i < b.length; i += 3) b.set(c, i); return b; }
 $("#clockBtn").onclick = () => send(pClock(+$("#cStyle").value, $("#cDate").checked, $("#c24").checked, ...rgbOf($("#cColor").value)));
-$("#fillBtn").onclick = () => send(pColor(...rgbOf($("#fill").value)));
+$("#fillBtn").onclick = () => isXB() ? xbImage(solidBuf($("#fill").value), false) : send(pColor(...rgbOf($("#fill").value)));
 const PALETTE = ["#ff0000", "#ff7a00", "#ffd400", "#2bd94a", "#00e0ff", "#2457ff", "#a640ff", "#ff3fa4", "#ffffff", "#000000"];
 function swatches(el, onPick) {
   PALETTE.forEach(c => { const b = document.createElement("button"); b.style.background = c; b.title = c; b.onclick = () => onPick(c); el.appendChild(b); });
 }
-swatches($("#fillSw"), c => { $("#fill").value = c; send(pColor(...rgbOf(c))); });
+swatches($("#fillSw"), c => { $("#fill").value = c; isXB() ? xbImage(solidBuf(c), false) : send(pColor(...rgbOf(c))); });
 swatches($("#brushSw"), c => { $("#brush").value = c; $("#eraser").checked = false; });
 
 $$("[data-cd]").forEach(b => b.onclick = () => send(pCountdown(+b.dataset.cd, +$("#cdM").value, +$("#cdS").value)));
@@ -628,6 +859,13 @@ function renderImg() {
   if (fit === "stretch") return ctx.drawImage(srcImg, 0, 0, w, h);
   const s = fit === "cover" ? Math.max(w / iw, h / ih) : Math.min(w / iw, h / ih);
   ctx.drawImage(srcImg, (w - iw * s) / 2, (h - ih * s) / 2, iw * s, ih * s);
+  if (isMono()) monoize(c);
+}
+/* preview what a single-colour badge will show */
+function monoize(c) {
+  const ctx = c.getContext("2d"), d = ctx.getImageData(0, 0, c.width, c.height);
+  for (let i = 0; i < d.data.length; i += 4) { const v = lum(d.data[i], d.data[i + 1], d.data[i + 2]) > 96 ? 255 : 0; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; }
+  ctx.putImageData(d, 0, 0);
 }
 function canvasRGB(c) {
   const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, out = new Uint8Array(c.width * c.height * 3);
@@ -640,7 +878,10 @@ const drop = $("#imgDrop");
 drop.ondragover = e => { e.preventDefault(); drop.style.borderColor = "var(--accent)"; };
 drop.ondragleave = () => drop.style.borderColor = "";
 drop.ondrop = e => { e.preventDefault(); drop.style.borderColor = ""; const f = e.dataTransfer.files[0]; if (f) loadImage(f); };
-$("#imgSend").onclick = async () => { await send(pDiy(1)); await upload(2, canvasRGB($("#imgPrev")), $("#imgBar")); };
+$("#imgSend").onclick = async () => {
+  if (isXB()) { await xbImage(canvasRGB($("#imgPrev")), false); $("#imgBar").style.width = "100%"; return log("picture sent", "rx"); }
+  await send(pDiy(1)); await upload(2, canvasRGB($("#imgPrev")), $("#imgBar"));
+};
 
 /* ---------- gif ---------- */
 let gifBytes = null;
@@ -648,11 +889,22 @@ $("#gifFile").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   gifBytes = new Uint8Array(await f.arrayBuffer());
   const gw = gifBytes[6] | gifBytes[7] << 8, gh = gifBytes[8] | gifBytes[9] << 8, { w, h } = panel();
+  if (isXB()) { $("#gifInfo").textContent = `${f.name}: ${gw}×${gh}. It will be resized to ${w}×${h} (up to 24 frames).`; $("#gifSend").disabled = false; return; }
   $("#gifInfo").textContent = `${f.name}: ${gw}×${gh}, ${(gifBytes.length / 1024).toFixed(1)} KB` +
     (gw !== w || gh !== h ? ` ⚠ the panel is ${w}×${h}, so resize the GIF first or it may not display properly` : " ✓ matches the panel");
   $("#gifSend").disabled = false;
 };
-$("#gifSend").onclick = () => gifBytes && upload(1, gifBytes, $("#gifBar"));
+$("#gifSend").onclick = async () => {
+  if (!gifBytes) return;
+  if (isXB()) {
+    const { w, h } = panel(), frames = await decodeGifFrames(gifBytes, w, h, XBM.canAnimate ? 24 : 1);
+    if (!frames) return log("this browser can't decode GIFs (needs Chrome or Edge)", "err");
+    await xbAnim(frames, +$("#gifSpeed").value, false); $("#gifBar").style.width = "100%";
+    return log(`animation sent: ${frames.length} frame${frames.length === 1 ? "" : "s"}`, "rx");
+  }
+  upload(1, gifBytes, $("#gifBar"));
+};
+$("#gifSpeed").oninput = e => $("#gifSpeedV").textContent = e.target.value;
 
 /* ---------- live draw ---------- */
 const pad = $("#pad"); let grid = [], drawing = false, queue = new Map(), flushT = null, diyOn = false;
@@ -677,17 +929,27 @@ function plot(e) {
   if (!queue.has(col)) queue.set(col, []); queue.get(col).push([x, y]);
   if (!flushT) flushT = setTimeout(flush, 60);
 }
+let xbDrawT = null;
 function flush() {
   flushT = null;
+  if (isXB()) { queue.clear(); if (!xbDrawT) xbDrawT = setTimeout(() => { xbDrawT = null; xbImage(canvasRGB(pad)); }, 250); return; }
   for (const [col, pts] of queue) for (let i = 0; i < pts.length; i += 100) send(pPixels(...rgbOf(col), pts.slice(i, i + 100)), true);
   queue.clear();
 }
 pad.onpointerdown = e => { drawing = true; pad.setPointerCapture(e.pointerId); plot(e); };
 pad.onpointermove = e => drawing && plot(e);
 pad.onpointerup = pad.onpointercancel = () => drawing = false;
-$("#padStart").onclick = async () => { await send(pDiy(1)); diyOn = true; log("drawing mode on (panel cleared)", "rx"); resizePad(); };
-$("#padClear").onclick = async () => { resizePad(); if (diyOn) await send(pDiy(1)); };
-$("#padSend").onclick = async () => { await send(pDiy(1)); diyOn = true; await upload(2, canvasRGB(pad), $("#imgBar")); };
+$("#padStart").onclick = async () => {
+  resizePad(); diyOn = true;
+  if (isXB()) await xbImage(canvasRGB(pad)); else await send(pDiy(1));
+  log("drawing mode on (panel cleared)", "rx");
+};
+$("#padClear").onclick = async () => { resizePad(); if (diyOn) isXB() ? await xbImage(canvasRGB(pad)) : await send(pDiy(1)); };
+$("#padSend").onclick = async () => {
+  diyOn = true;
+  if (isXB()) return xbImage(canvasRGB(pad), false);
+  await send(pDiy(1)); await upload(2, canvasRGB(pad), $("#imgBar"));
+};
 
 /* ---------- raw ---------- */
 $("#rawSend").onclick = () => {
@@ -944,6 +1206,10 @@ function ledDraw(cv, buf, W, H) {
 
 /* ---- push to display ---- */
 async function pushFrame(buf, full) {
+  if (isXB()) {                                   /* badges: send the picture only when it changed */
+    if (full || !sameBuf(buf, CC.last)) { await xbImage(buf); CC.last = buf.slice(); }
+    return;
+  }
   const c = ccCfg();
   quietRx = true;
   try {
@@ -1130,6 +1396,17 @@ function textPayload(cfg, prof = textProfile()) {
 
 /* preview: the glyph strip exactly as it is sent */
 function txRender() {
+  if (isXB()) {                                   /* badge preview: the strip that will scroll */
+    const { buf, w } = xbTextStrip(txCfg()), H = panel().h, cv = $("#txPrev"), p = Math.max(2, Math.min(8, Math.floor(96 / H)));
+    cv.width = w * p; cv.height = H * p; const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, cv.width, cv.height);
+    for (let y = 0; y < H; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 3; let [r, g, b] = [buf[i], buf[i + 1], buf[i + 2]];
+      if (isMono()) r = g = b = lum(r, g, b) > 96 ? 255 : 0;
+      if (r | g | b) { ctx.fillStyle = `rgb(${r},${g},${b})`; ctx.fillRect(x * p, y * p, p - (p > 3 ? 1 : 0), p - (p > 3 ? 1 : 0)); }
+    }
+    return;
+  }
   const cfg = txCfg(), prof = textProfile(), { glyphs } = textPayload(cfg, prof);
   const cv = $("#txPrev"), H = glyphs[0]?.h || cfg.size, totalW = Math.max(1, glyphs.reduce((a, gl) => a + gl.w, 0));
   const p = Math.max(2, Math.min(8, Math.floor(96 / H)));
@@ -1158,9 +1435,16 @@ $$("#textSec input, #textSec select").forEach(el => el.addEventListener("input",
 }));
 $("#size").addEventListener("change", () => { txPanel(); txRender(); });
 
+/* page effect → badge direction (0 still, 1 right, 2 left, 3 up, 4 down); slider 0-100 → speed 10..1 */
+const XB_DIR = { 0: 0, 1: 2, 2: 1, 3: 3, 4: 4 };
 $("#txShow").onclick = async () => {
   const cfg = txCfg(); if (!cfg.text.trim()) return $("#txMsg").focus();
   if (!wch) return log("connect to the display first", "err");
+  if (isXB()) {
+    const { buf, w } = xbTextStrip(cfg), speed = Math.max(1, Math.min(10, Math.round(10 - cfg.speed / 100 * 9)));
+    await xbText(buf, w, XB_DIR[cfg.mode] ?? 2, speed); $("#txBar").style.width = "100%";
+    return log("text sent; the badge keeps scrolling it after you disconnect", "rx");
+  }
   const { bytes } = textPayload(cfg);
   log(`sending text (${[...cfg.text].length} chars, ${bytes.length} B)`);
   const r = await upload(3, bytes, $("#txBar"), false, 12);
@@ -1361,6 +1645,11 @@ function pDirect(buf) {
    "direct" : experimental raw camera frame, no acks */
 const sameBuf = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
 async function lvSend(buf, W, H) {
+  if (isXB()) {
+    if (LV.src === "music") { await send(xbBars(LV.levels, +$("#muStyle").value), true); return 11; }
+    if (!LV.redraw && sameBuf(buf, LV.last)) return 0;
+    LV.method = "image"; const n = await xbImage(buf); LV.last = buf; LV.redraw = false; return n;
+  }
   let m = $("#lvMethod").value;
   if (m === "pixels" || LV.fails >= 99) m = "pixels";
   if (!LV.redraw && sameBuf(buf, LV.last)) return 0;                  /* nothing changed */
@@ -1385,6 +1674,12 @@ async function lvSend(buf, W, H) {
 
 /* ---- camera / screen ---- */
 async function lvOpen() {
+  if (LV.src === "music") {
+    LV.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    LV.actx = new AudioContext(); LV.an = LV.actx.createAnalyser(); LV.an.fftSize = 2048; LV.an.smoothingTimeConstant = 0.6;
+    LV.actx.createMediaStreamSource(LV.stream).connect(LV.an); LV.fft = new Uint8Array(LV.an.frequencyBinCount);
+    LV.levels = Array(7).fill(0); return;
+  }
   if (LV.src === "camera") {
     LV.stream = await navigator.mediaDevices.getUserMedia({ audio: false,
       video: { facingMode: $("#lvCam").value, width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 15 } } });
@@ -1394,7 +1689,39 @@ async function lvOpen() {
   LV.stream.getVideoTracks()[0].addEventListener("ended", () => liveStop());
   lvVideo.srcObject = LV.stream; await lvVideo.play();
 }
-function lvClose() { LV.stream?.getTracks().forEach(t => t.stop()); LV.stream = null; lvVideo.srcObject = null; }
+function lvClose() {
+  LV.stream?.getTracks().forEach(t => t.stop()); LV.stream = null; lvVideo.srcObject = null;
+  try { LV.actx?.close(); } catch {} LV.actx = null; LV.an = null;
+}
+/* 7 log-spaced bands, 60 Hz – 10 kHz, 0..1 with fast attack / slow fall */
+function musicLevels() {
+  const L = LV.levels || (LV.levels = Array(7).fill(0));
+  if (!LV.an) { const t = Date.now() / 300; return L.map((_, i) => 0.5 + 0.4 * Math.sin(t + i)); }   /* idle preview */
+  LV.an.getByteFrequencyData(LV.fft);
+  const hz = LV.actx.sampleRate / 2 / LV.fft.length, gain = +$("#muGain").value / 100;
+  for (let b = 0; b < 7; b++) {
+    const f0 = 60 * Math.pow(10000 / 60, b / 7), f1 = 60 * Math.pow(10000 / 60, (b + 1) / 7);
+    let sum = 0, n = 0; for (let i = Math.floor(f0 / hz); i <= Math.ceil(f1 / hz) && i < LV.fft.length; i++) { sum += LV.fft[i]; n++; }
+    const v = Math.min(1, Math.max(0, ((n ? sum / n : 0) / 255 - 0.15) * 1.6 * gain));
+    L[b] = v > L[b] ? v : L[b] * 0.82 + v * 0.18;
+  }
+  return L;
+}
+/* bars as a picture (preview, and what iDotMatrix panels get) */
+function renderBars(levels) {
+  const { w, h } = panel(), buf = new Uint8Array(w * h * 3), bw = Math.max(1, Math.floor((w + 1) / 7) - 1), gap = 1;
+  const x0 = Math.floor((w - (7 * bw + 6 * gap)) / 2), hollow = +$("#muStyle").value === 1;
+  levels.forEach((v, b) => {
+    const top = Math.round(v * h);
+    for (let y = 0; y < top; y++) for (let x = 0; x < bw; x++) {
+      if (hollow && y < top - 1 && x > 0 && x < bw - 1) continue;
+      const X = x0 + b * (bw + gap) + x, Y = h - 1 - y; if (X < 0 || X >= w) continue;
+      const col = isMono() ? [255, 255, 255] : hsvRGB(120 - (y / h) * 120);
+      buf.set(col, (Y * w + X) * 3);
+    }
+  });
+  return buf;
+}
 function lvGrab() {
   const { w, h } = panel(); lvCanvas.width = w; lvCanvas.height = h;
   const ctx = lvCanvas.getContext("2d", { willReadFrequently: true });
@@ -1658,6 +1985,7 @@ $("#lvAdd").onclick = async () => {
 /* ---- the loop ---- */
 function lvFrame() {
   const { w, h } = panel();
+  if (LV.src === "music") return { buf: renderBars(musicLevels()), w, h };
   if (LV.src === "info") {
     if (!LV.cards.length) return { buf: new Uint8Array(w * h * 3), w, h };
     if (Date.now() - LV.shownAt > +$("#lvHold").value * 1000) { LV.idx = (LV.idx + 1) % LV.cards.length; LV.shownAt = Date.now(); LV.redraw = true; }
@@ -1680,10 +2008,11 @@ async function lvLoop() {
     if (performance.now() - LV.statT > 2000) {
       const s = (performance.now() - LV.statT) / 1000;
       $("#lvStat").textContent = LV.src === "info" ? `Live · ${LV.cards.length} card${LV.cards.length === 1 ? "" : "s"} · ${(LV.statB / 1024 / s).toFixed(1)} KB/s`
+        : LV.src === "music" ? `Live · ${(LV.statF / s).toFixed(1)} updates/s${isXB() ? " · native bars" : ""}`
         : `Live · ${(LV.statF / s).toFixed(1)} fps · ${(LV.statB / 1024 / s).toFixed(1)} KB/s · ${LV.method}`;
       LV.statT = performance.now(); LV.statB = 0; LV.statF = 0;
     }
-    const minGap = LV.src === "info" ? 500 : 1000 / +$("#lvFps").value;
+    const minGap = LV.src === "info" ? 500 : LV.src === "music" ? (isXB() ? 70 : 1000 / Math.min(+$("#lvFps").value, 10)) : 1000 / +$("#lvFps").value;
     await new Promise(r => setTimeout(r, Math.max(5, minGap - (performance.now() - t0))));
   }
 }
@@ -1691,7 +2020,7 @@ async function liveStart() {
   if (!wch) return log("connect to the display first", "err");
   if (CC.running) clockStop();
   try { if (LV.src !== "info") await lvOpen(); }
-  catch (e) { return log((LV.src === "camera" ? "camera" : "screen sharing") + " didn't start: " + e.message, "err"); }
+  catch (e) { return log(({ camera: "camera", music: "microphone" }[LV.src] || "screen sharing") + " didn't start: " + e.message, "err"); }
   LV.running = true; LV.last = null; LV.mode = null; LV.fails = 0; LV.redraw = true; LV.statT = performance.now(); LV.statB = LV.statF = 0;
   $("#lvRun").textContent = "Stop live"; $("#lvRun").classList.remove("primary");
   $("#lvStat").textContent = "Starting…";
@@ -1714,7 +2043,7 @@ $$("#liveSec .tab").forEach(t => t.onclick = () => {
   $$("#liveSec .tab").forEach(b => b.classList.toggle("on", b === t));
   $$("#liveSec .lvPane").forEach(p => p.hidden = !p.dataset.src.split(" ").includes(LV.src));
   const noScreen = LV.src === "screen" && !navigator.mediaDevices?.getDisplayMedia;
-  $("#lvRun").disabled = noScreen || (LV.src === "camera" && !navigator.mediaDevices?.getUserMedia);
+  $("#lvRun").disabled = noScreen || (["camera", "music"].includes(LV.src) && !navigator.mediaDevices?.getUserMedia);
   if (noScreen) $("#lvScreenNote").textContent = "This browser can't share its screen (Chrome on Android can't). Open this page on a computer to mirror a screen.";
   $("#lvStat").textContent = LV.src === "info" ? "Preview only. Connect, then press Start live." : "Press Start live to begin.";
   try { localStorage.setItem("idm-lv-src", LV.src); } catch {}
@@ -1725,11 +2054,12 @@ document.addEventListener("visibilitychange", () => { if (LV.running && document
 /* preview + data refresh while not streaming */
 setInterval(() => {
   refreshDue();
-  if (!LV.running && LV.src === "info") { const { buf, w, h } = lvFrame(); ledDraw($("#lvLed"), buf, w, h); }
+  if (!LV.running && ["info", "music"].includes(LV.src)) { const { buf, w, h } = lvFrame(); ledDraw($("#lvLed"), buf, w, h); }
 }, 1000);
 lvList(); lvFormVis();
 try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data-src="${s}"]`)?.click(); } catch {}
 
+applyFamily();
 resizePad(); renderImg();
 log("ready. Press Connect and pick your IDM-… display");
 </script>
