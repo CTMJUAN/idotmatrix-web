@@ -427,6 +427,8 @@ body:not(.fam-xb) .xb-only{display:none!important}
   <section class="wide">
     <h2>Raw command &amp; log</h2>
     <div class="row"><input id="raw" style="flex:1;font-family:var(--mono)" placeholder="hex bytes, e.g. 05 00 04 80 32"><button id="rawSend">Send</button></div>
+    <div class="row"><label>Channel</label><select id="rawCh" style="flex:1;min-width:0;font-family:var(--mono)"><option value="">main (auto)</option></select>
+      <button id="rawRead" title="Read the selected channel's value">Read</button></div>
     <pre id="log"></pre>
   </section>
 </main>
@@ -533,6 +535,22 @@ async function connect(showAll = false) {
     if (ch.properties.notify) {
       try { await ch.startNotifications(); } catch { continue; }
       ch.addEventListener("characteristicvaluechanged", e => onNotify(new Uint8Array(e.target.value.buffer)));
+    }
+  }
+  /* test tool: every channel of every service the page may use, for the Raw command box */
+  RAW_CH = new Map(); const sel = $("#rawCh"); sel.length = 1;
+  for (const s2 of await server.getPrimaryServices().catch(() => [svc])) {
+    for (const ch of await s2.getCharacteristics().catch(() => [])) {
+      const short = ch.uuid.startsWith("0000") && ch.uuid.endsWith("-0000-1000-8000-00805f9b34fb") ? ch.uuid.slice(4, 8) : ch.uuid.slice(0, 8) + "…" + ch.uuid.slice(-4);
+      const pr = ch.properties, kinds = [pr.write && "write", pr.writeWithoutResponse && "write-nr", pr.read && "read", pr.notify && "notify"].filter(Boolean);
+      RAW_CH.set(ch.uuid, ch);
+      if (pr.write || pr.writeWithoutResponse || pr.read) sel.add(new Option(`${short} (${kinds.join(", ")})`, ch.uuid));
+      if (pr.notify && s2 !== svc) {
+        try {
+          await ch.startNotifications();
+          ch.addEventListener("characteristicvaluechanged", e => log(`← [${short}] ` + hex(new Uint8Array(e.target.value.buffer)), "rx"));
+        } catch {}
+      }
     }
   }
   chunk = isXB() ? XBM.mtu : 509;
@@ -1028,10 +1046,22 @@ $("#padSend").onclick = async () => {
 };
 
 /* ---------- raw ---------- */
-$("#rawSend").onclick = () => {
+let RAW_CH = new Map();
+$("#rawSend").onclick = async () => {
   const h = $("#raw").value.replace(/[^0-9a-f]/gi, "");
   if (!h || h.length % 2) return log("enter an even number of hex digits", "err");
-  send(new Uint8Array(h.match(/../g).map(x => parseInt(x, 16))));
+  const bytes = new Uint8Array(h.match(/../g).map(x => parseInt(x, 16))), ch = RAW_CH.get($("#rawCh").value);
+  if (!ch) return send(bytes);
+  try {
+    log(`→ [${$("#rawCh").selectedOptions[0].text.split(" ")[0]}] ` + hex(bytes), "tx");
+    await (ch.properties.writeWithoutResponse ? ch.writeValueWithoutResponse(bytes) : ch.writeValue(bytes));
+  } catch (e) { log("write failed: " + e.message, "err"); }
+};
+$("#rawRead").onclick = async () => {
+  const ch = RAW_CH.get($("#rawCh").value);
+  if (!ch || !ch.properties.read) return log("pick a channel marked 'read' first", "err");
+  try { const v = new Uint8Array((await ch.readValue()).buffer); log(`read [${$("#rawCh").selectedOptions[0].text.split(" ")[0]}]: ${hex(v)}  "${String.fromCharCode(...v).replace(/[^\x20-\x7e]/g, ".")}"`, "rx"); }
+  catch (e) { log("read failed: " + e.message, "err"); }
 };
 $("#raw").onkeydown = e => e.key === "Enter" && $("#rawSend").click();
 
@@ -2138,7 +2168,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.4");
+log("Matrix Control version 2026-11-08.5");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
