@@ -1236,9 +1236,19 @@ function renderClock(d = new Date(), minuteOnly = false) {
   const { hh, mm } = timeParts(d, c);
   const hideColon = c.blink && c.every === 1 && d.getSeconds() % 2 === 1;
   const ds = dateStr(d, c);
-  const secBar = c.secBar && c.every < 60, barH = secBar ? 1 : 0;
+  const secBar = c.secBar && c.every < 60;
+  let barH = secBar ? 1 : 0, vBar = false;
   let face = c.face;
-  if (face === "stacked" && h - barH < textSize("88", c.font === "thin" ? "thin" : c.font).h * 2 + 1) face = "digital";
+  /* tiny panels (11×11 speakers): HH:MM can't fit on one line even in the 3×5 font, so stack the hours over the minutes */
+  if ((face === "digital" || face === "day") && textSize(`${hh}:${mm}`, "thin", 1, true).w > w) face = "stacked";
+  let sFont = c.font;
+  if (face === "stacked") {
+    const need = f => textSize("88", f).h * 2 + 1;
+    if (textSize("88", sFont).w > w || need(sFont) > h - barH) sFont = "thin";
+    /* no spare row for the seconds bar: run it up the right-hand edge instead */
+    if (secBar && need(sFont) > h - barH && textSize("88", sFont).w <= w - 2) { barH = 0; vBar = true; }
+    if (need(sFont) > h - barH) face = "digital";
+  }
 
   if (face === "analog") {
     const cx = (w - 1) / 2, cy = (h - 1) / 2, r = Math.min(w, h) / 2 - 1;
@@ -1267,10 +1277,11 @@ function renderClock(d = new Date(), minuteOnly = false) {
     });
   } else if (face === "stacked") {
     const gap = h >= 24 ? 2 : 1, avail = h - barH - gap;
-    const s = Math.min(fitScale("88", c.font, w - 2, Math.floor(avail / 2)));
-    const th = textSize("88", c.font, s).h, y0 = Math.floor((h - barH - (th * 2 + gap)) / 2);
-    text(hh.padStart(2, " "), c.font, centerX(hh.padStart(2, " "), c.font, s), y0, s, col);
-    text(mm, c.font, centerX(mm, c.font, s), y0 + th + gap, s, col);
+    const s = Math.min(fitScale("88", sFont, w - 2, Math.floor(avail / 2)));
+    const th = textSize("88", sFont, s).h, y0 = Math.floor((h - barH - (th * 2 + gap)) / 2);
+    const H2 = hh.padStart(2, "0"), hx = vBar ? Math.max(0, Math.floor((w - 1 - textSize("88", sFont, s).w) / 2)) : null;
+    text(H2, sFont, hx ?? centerX(H2, sFont, s), y0, s, col);
+    text(mm, sFont, hx ?? centerX(mm, sFont, s), y0 + th + gap, s, col);
   } else {
     const t = `${hh}:${mm}`;
     const top = face === "day" ? DAY[d.getDay()] : "";
@@ -1297,7 +1308,10 @@ function renderClock(d = new Date(), minuteOnly = false) {
       y += textSize(r.str, r.font, r.s).h + gap;
     }
   }
-  if (secBar) {
+  if (vBar) {
+    const len = Math.round((d.getSeconds() + 1) / 60 * h);
+    for (let y = 0; y < len; y++) px(w - 1, h - 1 - y, acc);
+  } else if (secBar) {
     const len = Math.round((d.getSeconds() + 1) / 60 * w);
     for (let x = 0; x < len; x++) px(x, h - 1, acc);
   }
@@ -2178,7 +2192,7 @@ try { const s = localStorage.getItem("idm-lv-src"); if (s) $(`#liveSec .tab[data
 
 applyFamily();
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.6");
+log("Matrix Control version 2026-11-08.7");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
