@@ -631,11 +631,15 @@ function send(bytes, quiet = false, reliable = false) {
         const confirmed = reliable && wch.properties?.write && wch.writeValueWithResponse;
         await (confirmed ? wch.writeValueWithResponse(part)
           : wch.writeValueWithoutResponse ? wch.writeValueWithoutResponse(part) : wch.writeValue(part));
-        i += part.length;
+        i += part.length; send.busyRetry = 0;
         if (FAM === "xb") await new Promise(r => setTimeout(r, XBM?.idx ? 100 : XB_GAP));   /* badges need a pause between writes */
       } catch (e) {
         /* a dropped link isn't a packet-size problem: don't shrink, just stop */
-        if (!dev?.gatt?.connected || e.name === "NetworkError") { if (Date.now() - (send.warned || 0) > 2000) log("write failed: the display disconnected", "err"); send.warned = Date.now(); e.quiet = true; throw e; }
+        if (!dev?.gatt?.connected) { if (Date.now() - (send.warned || 0) > 2000) log("write failed: the display disconnected", "err"); send.warned = Date.now(); e.quiet = true; throw e; }
+        /* Android Chrome reports a busy radio ("GATT operation already in progress / failed") as NetworkError
+           while still connected: wait and retry the same piece a few times before shrinking packets */
+        if (e.name === "NetworkError" && (send.busyRetry = (send.busyRetry || 0) + 1) <= 3) { await new Promise(r => setTimeout(r, 30 * send.busyRetry)); continue; }
+        send.busyRetry = 0;
         const next = chunk > 244 ? 244 : chunk > 180 ? 180 : chunk > 20 ? 20 : 0;
         if (!next) { log("write failed: " + e.message, "err"); throw e; }
         chunk = next; log("reducing packet size to " + chunk, "err");
@@ -2299,7 +2303,7 @@ $("#install").onclick = async () => {
 window.addEventListener("appinstalled", () => { $("#install").hidden = true; log("installed: open Matrix Control from your home screen", "rx"); });
 if (matchMedia("(display-mode: standalone)").matches) log("running as an installed app");
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-08.13");
+log("Matrix Control version 2026-11-09.1");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
