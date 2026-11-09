@@ -460,10 +460,18 @@ const hex = b => [...b].map(x => x.toString(16).padStart(2, "0")).join(" ");
 window.addEventListener("unhandledrejection", e => { if (!e.reason?.quiet) log("error: " + (e.reason?.message || e.reason), "err"); e.preventDefault(); });
 
 /* ---------- panel size ---------- */
-function panel() { const [w, h] = $("#size").value.split("x").map(Number); return { w, h }; }
-try { const s = localStorage.getItem("idm-size"); if (s) $("#size").value = s; } catch {}
+function panel() { const [w, h] = ($("#size").value || "32x32").split("x").map(Number); return { w: w || 32, h: h || 32 }; }
+/* the iDotMatrix size is remembered on its own: a badge or speaker connection (e.g. 11×11) must not leave the
+   Panel menu pointing at a size the iDotMatrix list doesn't have, which blanked the menu and broke every picture */
+const IDM_SIZES = [...$("#size").options].filter(o => o.parentElement.tagName !== "OPTGROUP").map(o => o.value);   /* the menu as shipped = iDotMatrix sizes */
+function idmSize() {
+  let s = "32x32"; try { s = localStorage.getItem("idm-size") || s; } catch {}
+  if (!IDM_SIZES.includes(s)) s = "32x32";
+  $("#size").value = s;
+}
+idmSize();
 $("#size").onchange = () => {
-  try { localStorage.setItem("idm-size", $("#size").value); } catch {}
+  if (!isXB() && IDM_SIZES.includes($("#size").value)) try { localStorage.setItem("idm-size", $("#size").value); } catch {}
   if (typeof XBM !== "undefined" && XBM?.unlisted) {
     try { localStorage.setItem("idm-xbsize-" + XBM.svc, $("#size").value); } catch {}
     XBM = xbUnlisted(XBM.svc, XBM.label); applyFamily();
@@ -502,7 +510,7 @@ async function connect(showAll = false) {
     }
   }
   log("connected; looking for the display's control service…");
-  let svc = null, seen = []; FAM = "idm"; XBM = null;
+  let svc = null, seen = []; FAM = "idm"; XBM = null; idmSize();
   try { seen = (await server.getPrimaryServices()).map(x => x.uuid); } catch (e) { log("couldn't list services: " + e.message, "err"); }
   const fa = "000000fa-0000-1000-8000-00805f9b34fb";
   try {
@@ -2303,7 +2311,7 @@ $("#install").onclick = async () => {
 window.addEventListener("appinstalled", () => { $("#install").hidden = true; log("installed: open Matrix Control from your home screen", "rx"); });
 if (matchMedia("(display-mode: standalone)").matches) log("running as an installed app");
 resizePad(); renderImg();
-log("Matrix Control version 2026-11-09.1");
+log("Matrix Control version 2026-11-09.2");
 log("ready. Press Connect and pick your IDM-… display");
 </script>
 </body>
